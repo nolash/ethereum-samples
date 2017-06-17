@@ -82,14 +82,6 @@ func main() {
 		demolog.Crit("no pss-service for you", "err", err)
 		os.Exit(1)
 	}
-	foosvc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return newFooService()
-	}
-	err = stack.Register(foosvc)
-	if err != nil {
-		demolog.Crit("no fooservice for you", "err", err)
-		os.Exit(1)
-	}
 
 	// fire up the node
 	// this starts the tcp/rlpx server and activate protocols on it
@@ -140,7 +132,18 @@ func main() {
 			Addr: psaddr,
 		})
 		if err != nil {
-			demolog.Error("no pssmsg for you", "err", err)
+			demolog.Error("no bytes thru pssmsg for you", "err", err)
+		}
+
+		protomsg, err := pss.NewProtocolMsg(0, &fooMsg{
+			Serial: 1,
+		})
+		err = adminclient.Call(nil, "pss_send", topic, pss.APIMsg{
+			Msg:  protomsg,
+			Addr: psaddr,
+		})
+		if err != nil {
+			demolog.Error("no foomsg thru pssmsg for you", "err", err)
 		}
 	}
 

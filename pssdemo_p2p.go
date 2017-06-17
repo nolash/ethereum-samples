@@ -51,6 +51,7 @@ func main() {
 
 	cfg := &node.DefaultConfig
 	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", *localport)
+	cfg.IPCPath = "food.ipc"
 	cfg.DataDir = fmt.Sprintf("%s/.data_%d", ourdir, *localport)
 	stack, err := node.New(cfg)
 	if err != nil {
@@ -81,7 +82,7 @@ func main() {
 	// if we have a connect flag from the invocation
 	// connect to the node with the specified enode
 	if *remoteenode != "" {
-		adminclient, err := stack.Attach()
+		adminclient, err := stack.Attach() // stack.Server.AddPeer()
 		if err != nil {
 			demolog.Crit("no rpc for you", "err", err)
 		}
@@ -119,14 +120,9 @@ func (self fooService) Protocols() []p2p.Protocol {
 			Length:  1,
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				var serial uint = 0
-				fp := fooPeer{
-					Peer: p,
-					rw:   rw,
-				}
-				fmt.Printf("%v", fp)
 				go func() {
 					for {
-						msg, err := fp.rw.ReadMsg()
+						msg, err := rw.ReadMsg()
 						if err != nil {
 							demolog.Error("readmsg failed", "err", err)
 							quitC <- struct{}{}
@@ -135,6 +131,7 @@ func (self fooService) Protocols() []p2p.Protocol {
 						}
 					}
 				}()
+				//  sorted alphabetically protoclols on adding
 				for serial < c_msgcount {
 					err := p2p.Send(rw, 0, &fooMsg{Serial: serial})
 					if err != nil {
@@ -167,3 +164,7 @@ func (self fooService) Start(srv *p2p.Server) error {
 func (self fooService) Stop() error {
 	return nil
 }
+
+// explain caps, rlpx handshake
+// ints not possible in shipment
+// senditems too
