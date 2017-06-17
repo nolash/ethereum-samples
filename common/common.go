@@ -1,4 +1,3 @@
-// common settings for all examples
 package common
 
 import (
@@ -11,15 +10,10 @@ import (
 )
 
 const (
-	FooProtocolName       = "foo"
-	FooProtocolVersion    = 42
-	FooProtocolMaxMsgSize = 1024
-
-	p2pDefaultPort = 30100
-	ipcName        = "demo.ipc"
+	P2PDefaultPort = 30100
+	IPCName        = "demo.ipc"
 )
 
-// exported vars
 var (
 	// custom log, easily grep'able
 	Log = log.New("demolog", "*")
@@ -39,14 +33,12 @@ var (
 
 	// RemoteNode is an abstract representation of the other end of a tcp-connection
 	RemoteNode *discover.Node
-)
 
-var (
 	// self-explanatory command line arguments
 	verbose      = flag.Bool("v", false, "more verbose logs")
 	remoteport   = flag.Int("c", 0, "remote port (enables remote RPC lookup of enode")
 	enode        = flag.String("e", "", "enode to connect to (overrides remote RPC lookup)")
-	p2plocalport = flag.Int("p", p2pDefaultPort, "local port for p2p connections")
+	p2plocalport = flag.Int("p", P2PDefaultPort, "local port for p2p connections")
 )
 
 func init() {
@@ -54,6 +46,12 @@ func init() {
 
 	flag.Parse()
 
+	// get the working directory
+	OurDir, err = os.Getwd()
+	Log.Debug("htewyt")
+	if err != nil {
+		Log.Crit("Could not determine working directory", "err", err)
+	}
 	// ensure good log formats for terminal
 	// handle verbosity flag
 	hs := log.StreamHandler(os.Stderr, log.TerminalFormat(true))
@@ -65,15 +63,9 @@ func init() {
 	h := log.CallerFileHandler(hf)
 	log.Root().SetHandler(h)
 
-	// get the working directory
-	OurDir, err := os.Getwd()
-	if err != nil {
-		Log.Crit("Could not determine working directory", "err", err)
-	}
-
 	// if the enode argument is empty and we have RPC argument, try to fetch the enode from the RPC
 	if *enode == "" && *remoteport > 0 {
-		*enode, err = getEnodeFromRPC(fmt.Sprintf("%s/%s%d/%s", OurDir, DatadirPrefix, *remoteport, ipcName))
+		*enode, err = getEnodeFromRPC(fmt.Sprintf("%s/%s%d/%s", OurDir, DatadirPrefix, *remoteport, IPCName))
 		if err != nil {
 			Log.Warn("Can't connect to remove RPC", "err", err)
 		}
@@ -87,14 +79,14 @@ func init() {
 		}
 		RemoteNode = remotenodeptr
 	}
+}
 
-	// set up the local service node
+// set up the local service node
+func SetupNode() (err error) {
 	cfg := &node.DefaultConfig
 	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", *p2plocalport)
-	cfg.IPCPath = ipcName
+	cfg.IPCPath = IPCName
 	cfg.DataDir = fmt.Sprintf("%s/%s%d", OurDir, DatadirPrefix, *p2plocalport)
 	ServiceNode, err = node.New(cfg)
-	if err != nil {
-		Log.Crit("Service node create fail", "err", err)
-	}
+	return
 }
