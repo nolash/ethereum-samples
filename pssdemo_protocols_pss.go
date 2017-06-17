@@ -8,6 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/swarm/network"
+	"github.com/ethereum/go-ethereum/swarm/pss"
 	"os"
 	"reflect"
 	"time"
@@ -24,6 +26,10 @@ var (
 	quitC = make(chan struct{})
 
 	demolog log.Logger
+
+	overlayaddress = network.RandomAddr().Over()
+
+	cheatps *pss.Pss
 
 	localport   = flag.Int("p", 30303, "local port to open")
 	remoteenode = flag.String("c", "", "enode to connect to")
@@ -77,6 +83,24 @@ func main() {
 
 	// add the services we want to run
 	// we will be serving the protocols specified in foosvc.Protocols()
+	psssvc := func(ctx *node.ServiceContext) (node.Service, error) {
+		overlayparams := network.NewKadParams()
+		overlay := network.NewKademlia(overlayaddress, overlayparams)
+		psparams := pss.NewPssParams(true)
+		ps := pss.NewPss(overlay, nil, psparams)
+		if ps == nil {
+			return nil, fmt.Errorf("pss new fail: %v", err)
+		}
+		cheatps = ps
+		return ps, nil
+	}
+	err = stack.Register(psssvc)
+	if err != nil {
+		demolog.Crit("no pss-service for you", "err", err)
+		os.Exit(1)
+	}
+	// add the services we want to run
+	// we will be serving the protocols specified in foosvc.Protocols()
 	foosvc := func(ctx *node.ServiceContext) (node.Service, error) {
 		return newFooService()
 	}
@@ -95,6 +119,25 @@ func main() {
 	nodeinfo := stack.Server().NodeInfo()
 	demolog.Info("soup for you after all :)", "id", nodeinfo.ID, "enode", nodeinfo.Enode, "ip", nodeinfo.IP)
 
+	// this is how we should retrieve the pss service, in case we need to use it for something
+	// we are using it wrong apparently, so we've cheated above
+	//	ps := &pss.Pss{}
+	//	err = stack.Service(ps)
+	//	if err != nil {
+	//		demolog.Crit("we shouldnt be here", "err", err)
+	//	}
+
+	psaddr := cheatps.BaseAddr()
+	demolog.Info("pss is initialized on the totally made-up swarm overlay address", "addr", fmt.Sprintf("%x", psaddr))
+
+	//fooproto := fooService{}.Protocols()[0]
+	//fooprototopic := cheatps.NewTopic(fooproto.Name, fooproto.Version)
+	topic := pss.NewTopic("foo", 42)
+	cheatps.Register(&topic, func(msg []byte, p *p2p.Peer, from []byte) error {
+		demolog.Debug("psshandler", "msg", msg, "peer", p, "from", from, "topic", topic)
+		return nil
+	})
+
 	// if we have a connect flag from the invocation
 	// connect to the node with the specified enode
 	if *remoteenode != "" {
@@ -105,6 +148,18 @@ func main() {
 		err = adminclient.Call(nil, "admin_addPeer", *remoteenode)
 		if err != nil {
 			demolog.Crit("no connect for you", "err", err)
+		}
+
+		// use the pss rpc api to send a message
+		// it's to ourselves, cos we dont actually have routing now
+		// send-to-self enabling is a debug setting enabled in pssconfig
+		// ... it's not normally possible
+		err = adminclient.Call(nil, "pss_send", topic, pss.APIMsg{
+			Msg:  []byte{0x64, 0x6f, 0x64},
+			Addr: psaddr,
+		})
+		if err != nil {
+			demolog.Error("no pssmsg for you", "err", err)
 		}
 
 	}

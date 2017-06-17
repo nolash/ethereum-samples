@@ -8,9 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/swarm/network"
-	"github.com/ethereum/go-ethereum/swarm/pss"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -26,21 +25,20 @@ var (
 
 	demolog log.Logger
 
-	overlayaddress = network.RandomAddr().Over()
-
-	cheatps *pss.Pss
-
 	localport   = flag.Int("p", 30303, "local port to open")
 	remoteenode = flag.String("c", "", "enode to connect to")
 )
 
+// using p2p.protocols abstraction we can register the message structs we use for our protocol more conveniently
+// it enables us to use an external handler function for incoming messages
+// only messages of the types given in the "Messages" member will make it through
 var (
 	fooProtocol = protocols.Spec{
 		Name:       c_fooprotocolname,
 		Version:    c_fooprotocolversion,
 		MaxMsgSize: c_fooprotocolmaxmsgsize,
 		Messages: []interface{}{
-			&fooService{},
+			&fooMsg{}, &fooOtherMsg{}, &fooUnhandledMsg{},
 		},
 	}
 )
@@ -79,22 +77,6 @@ func main() {
 
 	// add the services we want to run
 	// we will be serving the protocols specified in foosvc.Protocols()
-	psssvc := func(ctx *node.ServiceContext) (node.Service, error) {
-		overlayparams := network.NewKadParams()
-		overlay := network.NewKademlia(overlayaddress, overlayparams)
-		psparams := pss.NewPssParams(true)
-		ps := pss.NewPss(overlay, nil, psparams)
-		if ps == nil {
-			return nil, fmt.Errorf("pss new fail: %v", err)
-		}
-		cheatps = ps
-		return ps, nil
-	}
-	err = stack.Register(psssvc)
-	if err != nil {
-		demolog.Crit("no pss-service for you", "err", err)
-		os.Exit(1)
-	}
 	foosvc := func(ctx *node.ServiceContext) (node.Service, error) {
 		return newFooService()
 	}
@@ -113,25 +95,6 @@ func main() {
 	nodeinfo := stack.Server().NodeInfo()
 	demolog.Info("soup for you after all :)", "id", nodeinfo.ID, "enode", nodeinfo.Enode, "ip", nodeinfo.IP)
 
-	// this is how we should retrieve the pss service, in case we need to use it for something
-	// we are using it wrong apparently, so we've cheated above
-	//	ps := &pss.Pss{}
-	//	err = stack.Service(ps)
-	//	if err != nil {
-	//		demolog.Crit("we shouldnt be here", "err", err)
-	//	}
-
-	psaddr := cheatps.BaseAddr()
-	demolog.Info("pss is initialized on the totally made-up swarm overlay address", "addr", fmt.Sprintf("%x", psaddr))
-
-	//fooproto := fooService{}.Protocols()[0]
-	//fooprototopic := cheatps.NewTopic(fooproto.Name, fooproto.Version)
-	topic := pss.NewTopic("foo", 42)
-	cheatps.Register(&topic, func(msg []byte, p *p2p.Peer, from []byte) error {
-		demolog.Debug("psshandler", "msg", msg, "peer", p, "from", from, "topic", topic)
-		return nil
-	})
-
 	// if we have a connect flag from the invocation
 	// connect to the node with the specified enode
 	if *remoteenode != "" {
@@ -144,17 +107,6 @@ func main() {
 			demolog.Crit("no connect for you", "err", err)
 		}
 
-		// use the pss rpc api to send a message
-		// it's to ourselves, cos we dont actually have routing now
-		// send-to-self enabling is a debug setting enabled in pssconfig
-		// ... it's not normally possible
-		err = adminclient.Call(nil, "pss_send", topic, pss.APIMsg{
-			Msg:  []byte{0x64, 0x6f, 0x64},
-			Addr: psaddr,
-		})
-		if err != nil {
-			demolog.Error("no pssmsg for you", "err", err)
-		}
 	}
 
 	<-quitC
@@ -180,24 +132,38 @@ func newFooService() (fooService, error) {
 func (self fooService) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{
 		p2p.Protocol{
-			Name:    "foo",
-			Version: 42,
-			Length:  1,
+			Name:    fooProtocol.Name,
+			Version: fooProtocol.Version,
+			Length:  uint64(len(fooProtocol.Messages)),
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				pp := protocols.NewPeer(p, rw, &fooProtocol)
 				go func() {
 					var serial uint = 0
+					var err error
 					for serial < c_msgcount {
 						time.Sleep(time.Second)
-						err := pp.Send(&fooMsg{Serial: serial})
+						err = pp.Send(&fooMsg{Serial: serial})
 						if err != nil {
 							demolog.Error("can't send to peer", "peer", pp, "err", err)
 							quitC <- struct{}{}
 						}
+						err = pp.Send(&fooOtherMsg{Created: time.Now()})
+						if err != nil {
+							demolog.Error("can't send to peer", "peer", pp, "err", err)
+							quitC <- struct{}{}
+						}
+
 						serial++
 					}
+					err = pp.Send(&fooUnhandledMsg{Content: []byte{0x64, 0x6f, 0x6f}})
+					if err != nil {
+						demolog.Debug("can't send to peer", "err", err)
+						quitC <- struct{}{}
+					}
+
 				}()
 				pp.Run(fooHandler)
+				quitC <- struct{}{}
 				return nil
 			},
 		},
@@ -206,13 +172,31 @@ func (self fooService) Protocols() []p2p.Protocol {
 
 // this is the handler of the incoming message
 func fooHandler(msg interface{}) error {
-	demolog.Debug("foohandler!", "msg", msg)
-	return nil
+	foomsg, ok := msg.(*fooMsg)
+	if ok {
+		demolog.Debug("foomsg!", "msg", foomsg)
+		return nil
+	}
+
+	fooothermsg, ok := msg.(*fooOtherMsg)
+	if ok {
+		demolog.Debug("fooothermsg!", "msg", fooothermsg)
+		return nil
+	}
+	return fmt.Errorf("If you reach here, you forgot to make a handler for the message type %v", reflect.TypeOf(msg))
 }
 
-// this is the structure of the protocol message we want to send around
+// we have two types of messages we want to send
 type fooMsg struct {
 	Serial uint
+}
+
+type fooOtherMsg struct {
+	Created time.Time
+}
+
+type fooUnhandledMsg struct {
+	Content []byte
 }
 
 // we really only care about the protocol part
