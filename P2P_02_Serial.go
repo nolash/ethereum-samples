@@ -86,7 +86,7 @@ func run(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				quitC <- false
 				return
 			}
-			demo.Log.Debug("Message received!", "payload", foomsg, "code", msg.Code, "size", msg.Size)
+			demo.FooHandler(foomsg)
 		}
 	}()
 	for serial < msgCount {
