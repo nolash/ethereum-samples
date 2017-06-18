@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 	"sync"
 )
@@ -15,6 +14,10 @@ import (
 var (
 	messageW = &sync.WaitGroup{}
 )
+
+type FooMsg struct {
+	V uint
+}
 
 // create a protocol that can take care of message sending
 // the Run function is invoked upon connection
@@ -29,33 +32,29 @@ var (
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 
 			// simplest payload possible; a byte slice
-			// payload in a p2p.Msg is RLP encoded
-			// The underlying connection needs to read arbitrary amounts of RLP bytes sequentially
-			size, payloadreader, err := rlp.EncodeToReader([]byte("foobar"))
-			if err != nil {
-				return fmt.Errorf("RLP encode message fail: %v", err)
-			}
-
-			// encapsulate in the transport structure which p2p peers recognize
-			outmsg := p2p.Msg{
-				Code:    0,
-				Size:    uint32(size),
-				Payload: payloadreader,
-			}
+			outmsg := "foobar"
 
 			// send the message
-			err = p2p.Send(rw, 0, outmsg)
+			err := p2p.Send(rw, 0, outmsg)
 			if err != nil {
 				return fmt.Errorf("Send p2p message fail: %v", err)
 			}
-			demo.Log.Debug("sending message", "peer", p, "msg", outmsg)
+			demo.Log.Info("sending message", "peer", p, "msg", outmsg)
 
 			// wait for the message to come in from the other side
+			// note that receive message event doesn't get emitted until we ReadMsg()
 			inmsg, err := rw.ReadMsg()
 			if err != nil {
 				return fmt.Errorf("Receive p2p message fail: %v", err)
 			}
-			demo.Log.Debug("received message", "peer", p, "msg", inmsg)
+
+			// decode the message and check the contents
+			var decodedmsg string
+			err = inmsg.Decode(&decodedmsg)
+			if err != nil {
+				return fmt.Errorf("Decode p2p message fail: %v", err)
+			}
+			demo.Log.Info("received message", "peer", p, "msg", decodedmsg)
 
 			// terminate the protocol
 			return nil
