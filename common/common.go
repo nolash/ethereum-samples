@@ -40,9 +40,10 @@ var (
 
 	// self-explanatory command line arguments
 	verbose      = flag.Bool("v", false, "more verbose logs")
-	remoteport   = flag.Int("c", 0, "remote port (enables remote RPC lookup of enode")
+	remoteport   = flag.Int("p", 0, "remote port (enables remote RPC lookup of enode)")
+	remotehost   = flag.String("h", "127.0.0.1", "remote host (RPC, p2p)")
 	enode        = flag.String("e", "", "enode to connect to (overrides remote RPC lookup)")
-	p2plocalport = flag.Int("p", P2PDefaultPort, "local port for p2p connections")
+	p2plocalport = flag.Int("l", P2PDefaultPort, "local port for p2p connections")
 )
 
 // setup logging
