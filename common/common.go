@@ -99,10 +99,6 @@ func NewServiceNode(port int, httpport int, wsport int) (*node.Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ServiceNode create fail: %v", err)
 	}
-	err = stack.Start()
-	if err != nil {
-		return nil, fmt.Errorf("ServiceNode start fail: %v", err)
-	}
 	return stack, nil
 }
 

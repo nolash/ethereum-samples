@@ -1,4 +1,4 @@
-// ethereum RPC hello world
+// RPC hello world
 package main
 
 import (
@@ -10,8 +10,10 @@ import (
 type FooAPI struct {
 }
 
-// a valid API method has a pointer receiver and returns error as last argument
-func (api *FooAPI) SayHello() (string, error) {
+// a valid API method is exported, has a pointer receiver and returns error as last argument
+// the method will be called with <registeredname>_sayHello;
+// (first letter in method is lowercase, module name and method name separated by underscore)
+func (api *FooAPI) HelloWorld() (string, error) {
 	return "foobar", nil
 }
 
@@ -48,7 +50,7 @@ func main() {
 
 	// call the RPC method
 	var result string
-	err = rpcclient.Call(&result, "foo_sayHello")
+	err = rpcclient.Call(&result, "foo_helloWorld")
 	if err != nil {
 		demo.Log.Crit("RPC call fail", "err", err)
 	}
