@@ -1,28 +1,61 @@
-// set up a service node and start it
+// ethereum RPC hello world
 package main
 
 import (
-	"fmt"
-	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/rpc"
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 )
 
+// set up an object that can contain the API methods
+type FooAPI struct {
+}
+
+// a valid API method has a pointer receiver and returns error as last argument
+func (api *FooAPI) SayHello() (string, error) {
+	return "foobar", nil
+}
+
 func main() {
-	var err error
 
-	// set up the local service node
-	cfg := &node.DefaultConfig
-	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", demo.P2PDefaultPort)
-	cfg.IPCPath = demo.IPCName
-	cfg.DataDir = fmt.Sprintf("%s/%s%d", demo.OurDir, demo.DatadirPrefix, demo.P2PDefaultPort)
-	demo.ServiceNode, err = node.New(cfg)
+	// set up the RPC server
+	rpcsrv := rpc.NewServer()
+	err := rpcsrv.RegisterName("foo", &FooAPI{})
 	if err != nil {
-		demo.Log.Crit("ServiceNode create fail", "err", err)
-	}
-	err = demo.ServiceNode.Start()
-	if err != nil {
-		demo.Log.Crit("ServiceNode start fail", "err", err)
+		demo.Log.Crit("Register API method(s) fail", "err", err)
 	}
 
-	demo.Log.Info("That's all, folks")
+	// create IPC endpoint
+	ipcpath := ".demo.ipc"
+	ipclistener, err := rpc.CreateIPCListener(ipcpath)
+	if err != nil {
+		demo.Log.Crit("IPC endpoint create fail", "err", err)
+	}
+
+	// mount RPC server on IPC endpoint
+	// it will automatically detect and serve any valid methods
+	go func() {
+		err = rpcsrv.ServeListener(ipclistener)
+		if err != nil {
+			demo.Log.Crit("Mount RPC on IPC fail", "err", err)
+		}
+	}()
+
+	// create an IPC client
+	rpcclient, err := rpc.Dial(ipcpath)
+	if err != nil {
+		demo.Log.Crit("IPC dial fail", "err", err)
+	}
+
+	// call the RPC method
+	var result string
+	err = rpcclient.Call(&result, "foo_sayHello")
+	if err != nil {
+		demo.Log.Crit("RPC call fail", "err", err)
+	}
+
+	// inspect the results
+	demo.Log.Info("RPC return value", "reply", result)
+
+	// bring down the server
+	rpcsrv.Stop()
 }
