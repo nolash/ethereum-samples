@@ -9,14 +9,17 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 	"sync"
+	"time"
 )
 
 var (
-	messageW = &sync.WaitGroup{}
+	protoW = &sync.WaitGroup{}
+	pingW  = &sync.WaitGroup{}
 )
 
-type FooMsg struct {
-	V uint
+type FooPingMsg struct {
+	Pong    bool
+	Created time.Time
 }
 
 // create a protocol that can take care of message sending
@@ -31,25 +34,59 @@ var (
 		Length:  1,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 
-			// simplest payload possible; a byte slice
-			outmsg := "foobar"
+			pingW.Add(1)
+			ponged := false
+
+			// create the message structure
+			msg := FooPingMsg{
+				Pong:    false,
+				Created: time.Now(),
+			}
 
 			// send the message
-			err := p2p.Send(rw, 0, outmsg)
+			err := p2p.Send(rw, 0, msg)
 			if err != nil {
 				return fmt.Errorf("Send p2p message fail: %v", err)
 			}
-			demo.Log.Info("sending message", "peer", p, "msg", outmsg)
+			demo.Log.Info("sending ping", "peer", p)
 
-			// wait for the message to come in from the other side
-			// note that receive message event doesn't get emitted until we ReadMsg()
-			inmsg, err := rw.ReadMsg()
-			if err != nil {
-				return fmt.Errorf("Receive p2p message fail: %v", err)
+			for !ponged {
+				// wait for the message to come in from the other side
+				// note that receive message event doesn't get emitted until we ReadMsg()
+				msg, err := rw.ReadMsg()
+				if err != nil {
+					return fmt.Errorf("Receive p2p message fail: %v", err)
+				}
+
+				// decode the message and check the contents
+				var decodedmsg FooPingMsg
+				err = msg.Decode(&decodedmsg)
+				if err != nil {
+					return fmt.Errorf("Decode p2p message fail: %v", err)
+				}
+
+				if decodedmsg.Pong {
+					demo.Log.Info("received pong", "peer", p)
+					ponged = true
+					pingW.Done()
+				} else {
+					demo.Log.Info("received ping", "peer", p)
+					msg := FooPingMsg{
+						Pong:    true,
+						Created: time.Now(),
+					}
+					err := p2p.Send(rw, 0, msg)
+					if err != nil {
+						return fmt.Errorf("Send p2p message fail: %v", err)
+					}
+					demo.Log.Info("sent pong", "peer", p)
+				}
+
 			}
-			demo.Log.Info("received message", "peer", p, "msg", inmsg)
 
-			// terminate the protocol
+			// terminate the protocol after all involved have completed the cycle
+			pingW.Wait()
+			protoW.Done()
 			return nil
 		},
 	}
@@ -105,7 +142,7 @@ func main() {
 	// the Err() on the Subscription object returns when subscription is closed
 	eventOneC := make(chan *p2p.PeerEvent)
 	sub_one := srv_one.SubscribeEvents(eventOneC)
-	messageW.Add(1)
+	protoW.Add(1)
 	go func() {
 		for {
 			select {
@@ -114,7 +151,6 @@ func main() {
 					demo.Log.Debug("Received peer add notification on node #1", "peer", peerevent.Peer)
 				} else if peerevent.Type == "msgrecv" {
 					demo.Log.Info("Received message nofification on node #1", "event", peerevent)
-					messageW.Done()
 				}
 			case <-sub_one.Err():
 				return
@@ -124,7 +160,7 @@ func main() {
 
 	eventTwoC := make(chan *p2p.PeerEvent)
 	sub_two := srv_two.SubscribeEvents(eventTwoC)
-	messageW.Add(1)
+	protoW.Add(1)
 	go func() {
 		for {
 			select {
@@ -133,7 +169,6 @@ func main() {
 					demo.Log.Debug("Received peer add notification on node #2", "peer", peerevent.Peer)
 				} else if peerevent.Type == "msgrecv" {
 					demo.Log.Info("Received message nofification on node #2", "event", peerevent)
-					messageW.Done()
 				}
 			case <-sub_two.Err():
 				return
@@ -149,7 +184,7 @@ func main() {
 	srv_one.AddPeer(node_two)
 
 	// wait for each respective message to be delivered on both sides
-	messageW.Wait()
+	protoW.Wait()
 
 	// terminate subscription loops and unsubscribe
 	sub_one.Unsubscribe()
