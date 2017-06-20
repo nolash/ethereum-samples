@@ -8,12 +8,6 @@ import (
 	"time"
 )
 
-const (
-	FooProtocolName       = "foo"
-	FooProtocolVersion    = 42
-	FooProtocolMaxMsgSize = 1024
-)
-
 var (
 	fooprotocolmessages = []interface{}{
 		&FooMsg{},

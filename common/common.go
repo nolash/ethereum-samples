@@ -1,8 +1,10 @@
 package common
 
 import (
+	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -100,6 +102,25 @@ func NewServiceNode(port int, httpport int, wsport int) (*node.Node, error) {
 		return nil, fmt.Errorf("ServiceNode create fail: %v", err)
 	}
 	return stack, nil
+}
+
+// create a server
+func NewServer(privkey *ecdsa.PrivateKey, name string, version string, proto p2p.Protocol, port int) *p2p.Server {
+
+	cfg := p2p.Config{
+		PrivateKey:      privkey,
+		Name:            common.MakeName(name, version),
+		MaxPeers:        1,
+		Protocols:       []p2p.Protocol{proto},
+		EnableMsgEvents: true,
+	}
+	if port > 0 {
+		cfg.ListenAddr = fmt.Sprintf(":%d", port)
+	}
+	srv := &p2p.Server{
+		Config: cfg,
+	}
+	return srv
 }
 
 // return a uniform datadir name
