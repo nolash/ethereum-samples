@@ -40,7 +40,7 @@ func (self *fooService) APIs() []rpc.API {
 		rpc.API{
 			Namespace: "foo",
 			Version:   "42",
-			Service:   newFooAPI(self.pingC),
+			Service:   newFooAPI(self.pingC, &self.pongcount),
 			Public:    true,
 		},
 	}
@@ -65,12 +65,14 @@ func (self *fooService) Protocols() []p2p.Protocol {
 				// we don't know if we're awaiting anything at the time of the kill so this subroutine will run till the application ends
 				go func() {
 					for {
+						demo.Log.Debug("in pong catch")
 						msg, err := rw.ReadMsg()
 						if err != nil {
 							demo.Log.Warn("Receive p2p message fail", "err", err)
 							break
 						}
 
+						demo.Log.Debug("in pong catch after readmsg")
 						// decode the message and check the contents
 						var decodedmsg FooPingMsg
 						err = msg.Decode(&decodedmsg)
@@ -82,7 +84,7 @@ func (self *fooService) Protocols() []p2p.Protocol {
 						// if we get a pong, update our pong counter
 						if decodedmsg.Pong {
 							self.pongcount++
-							demo.Log.Debug("received pong", "peer", p)
+							demo.Log.Debug("received pong", "peer", p, "count", self.pongcount)
 						} else {
 							demo.Log.Debug("received ping", "peer", p)
 							pingmsg := &FooPingMsg{
@@ -137,19 +139,28 @@ func (self *fooService) Stop() error {
 // in this example we don't care about who the pongs comes from, we count them all
 // note it is a bit fragile; we don't check for closed channels
 type FooAPI struct {
-	pongcount int
+	running   bool
+	pongcount *int
 	pingC     map[discover.NodeID]chan struct{}
 }
 
-func newFooAPI(pingC map[discover.NodeID]chan struct{}) *FooAPI {
+func newFooAPI(pingC map[discover.NodeID]chan struct{}, pongcount *int) *FooAPI {
 	return &FooAPI{
-		pingC: pingC,
+		running:   true,
+		pingC:     pingC,
+		pongcount: pongcount,
 	}
+}
+
+func (api *FooAPI) Increment() {
+	*api.pongcount++
 }
 
 // invoke a single ping
 func (api *FooAPI) Ping(id discover.NodeID) error {
-	api.pingC[id] <- struct{}{}
+	if api.running {
+		api.pingC[id] <- struct{}{}
+	}
 	return nil
 }
 
@@ -159,13 +170,14 @@ func (api *FooAPI) Quit(id discover.NodeID) error {
 	if api.pingC[id] == nil {
 		return fmt.Errorf("unknown peer")
 	}
+	api.running = false
 	close(api.pingC[id])
 	return nil
 }
 
 // return the amounts of pongs received
 func (api *FooAPI) PongCount() (int, error) {
-	return api.pongcount, nil
+	return *api.pongcount, nil
 }
 
 func main() {
@@ -263,6 +275,10 @@ func main() {
 				break
 			}
 		}
+
+		demo.Log.Debug("Waiting a bit for protocols to finish")
+		time.Sleep(time.Millisecond * 250)
+
 		err := rpcclient_one.Call(nil, "foo_quit", ev.Peer)
 		if err != nil {
 			demo.Log.Crit("server #1 RPC quit fail", "err", err)
@@ -271,6 +287,7 @@ func main() {
 		if ev.Type != "drop" {
 			demo.Log.Error("server #1 expected peer drop", "eventtype", ev.Type)
 		}
+
 		stackW.Done()
 	}()
 
@@ -290,6 +307,10 @@ func main() {
 				break
 			}
 		}
+
+		demo.Log.Debug("Waiting a bit for protocols to finish")
+		time.Sleep(time.Millisecond * 250)
+
 		err := rpcclient_two.Call(nil, "foo_quit", ev.Peer)
 		if err != nil {
 			demo.Log.Crit("server #2 RPC quit fail", "err", err)
@@ -298,14 +319,13 @@ func main() {
 		if ev.Type != "drop" {
 			demo.Log.Error("expected peer drop", "eventtype", ev.Type)
 		}
+
 		stackW.Done()
 	}()
 
 	// wait for every to finish
 	// add a grace period for pongs to arrive
 	stackW.Wait()
-	demo.Log.Debug("Waiting a bit for protocols to finish")
-	time.Sleep(time.Millisecond * 250)
 
 	// inspect the result
 	err = rpcclient_one.Call(&count, "foo_pongCount")
