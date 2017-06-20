@@ -5,16 +5,20 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/swarm"
+	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"os"
 )
 
 const (
 	P2PDefaultPort = 30100
 	IPCName        = "demo.ipc"
+	bzzNetworkId   = 3
 )
 
 var (
@@ -61,29 +65,77 @@ func init() {
 	hf := log.LvlFilterHandler(loglevel, hs)
 	h := log.CallerFileHandler(hf)
 	log.Root().SetHandler(h)
+}
 
-	//	// remote node
-	//	//
-	//	// if the enode argument is empty and we have RPC argument, try to fetch the enode from the RPC
-	//	if *enode == "" && *remoteport > 0 {
-	//		*enode, err = getEnodeFromRPC(fmt.Sprintf("%s/%s%d/%s", BasePath, DatadirPrefix, *remoteport, IPCName))
-	//		if err != nil {
-	//			Log.Warn("Can't connect to remote RPC", "err", err)
-	//		}
-	//	}
-	//
-	//	// if we have an enode string now, use it to get the p2p node representation
-	//	if *enode != "" {
-	//		remotenodeptr, err := discover.ParseNode(*enode)
-	//		if err != nil {
-	//			Log.Warn("Can't create pointer for remote node", "err", err, "enode", *enode)
-	//		}
-	//		RemoteNode = remotenodeptr
-	//	}
+// set up a line of three pss-enabled hosts offering websocket interface
+//func NewPssPool() (ipc_left *rpc.Client, ipc_right *rpc.Client, stopfunc func(), err error) {
+func NewPssPool() (port_left int, port_right int, stopfunc func(), err error) {
+
+	var stacks []*node.Node
+	for i := 0; i < 3; i++ {
+		stack, err := NewServiceNode(P2PDefaultPort+i, 0, node.DefaultWSPort+i, "pss")
+		if err != nil {
+			return 0, 0, nil, fmt.Errorf("bzz service #%d create fail: %v", i+1, err)
+		}
+		err = stack.Register(NewSwarmService(stack, 30399+i))
+		if err != nil {
+			return 0, 0, nil, fmt.Errorf("bzz service #%d register fail: %v", i+1, err)
+		}
+		err = stack.Start()
+		if err != nil {
+			return 0, 0, nil, fmt.Errorf("servicenode #%d start failed: %v", i+1, err)
+		}
+		stacks = append(stacks, stack)
+	}
+
+	// connect the nodes
+	p2pnode_mid := stacks[1].Server().Self()
+	stacks[0].Server().AddPeer(p2pnode_mid)
+	stacks[2].Server().AddPeer(p2pnode_mid)
+
+	stop := func() {
+		for i := 0; i < len(stacks); i++ {
+			stacks[i].Stop()
+		}
+	}
+
+	return node.DefaultWSPort, node.DefaultWSPort + 2, stop, nil
+	//return ipc_left, ipc_right, stop, nil
+}
+
+func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContext) (node.Service, error) {
+	return func(ctx *node.ServiceContext) (node.Service, error) {
+		// get the encrypted private key file
+		keyid := fmt.Sprintf("%s/D3_Pss/nodekey", stack.DataDir())
+
+		// load the private key from the file content
+		prvkey, err := crypto.LoadECDSA(keyid)
+		if err != nil {
+			return nil, fmt.Errorf("privkey fail: %v", prvkey)
+		}
+
+		// create the swarm overlay address
+		chbookaddr := crypto.PubkeyToAddress(prvkey.PublicKey)
+
+		// configure and create a swarm instance
+		bzzdir := stack.InstanceDir() // todo: what is the difference between this and datadir?
+
+		swapEnabled := false
+		syncEnabled := false
+		pssEnabled := true
+		cors := "*"
+
+		bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, bzzNetworkId)
+		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
+		if err != nil {
+			Log.Crit("unable to configure swarm", "err", err)
+		}
+		return swarm.NewSwarm(ctx, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+	}
 }
 
 // set up the local service node
-func NewServiceNode(port int, httpport int, wsport int) (*node.Node, error) {
+func NewServiceNode(port int, httpport int, wsport int, modules ...string) (*node.Node, error) {
 	cfg := &node.DefaultConfig
 	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", port)
 	cfg.IPCPath = IPCName
@@ -96,6 +148,10 @@ func NewServiceNode(port int, httpport int, wsport int) (*node.Node, error) {
 	if wsport > 0 {
 		cfg.WSHost = node.DefaultWSHost
 		cfg.WSPort = wsport
+		cfg.WSOrigins = []string{"*"}
+		for i := 0; i < len(modules); i++ {
+			cfg.WSModules = append(cfg.WSModules, modules[i])
+		}
 	}
 	stack, err := node.New(cfg)
 	if err != nil {
