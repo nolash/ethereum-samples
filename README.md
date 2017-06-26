@@ -1,6 +1,10 @@
 # p2p programming in go-ethereum
 
-**These examples build on the https://github.com/ethersphere/go-ethereum/tree/network-testing-framework branch. As of this writing this branch is currently being merged into ethereum master. ETA is end july 2017**
+## CAVEAT
+
+**These examples build on the https://github.com/ethersphere/go-ethereum/tree/network-testing-framework branch.** As of this writing this branch is currently being merged into ethereum master. The subfolder "standalone" holds examples A through C without use of the local common package, which renders some of them usable with the current ethereum master branch.
+
+## DESCRIPTION
 
 These code examples are intended to demonstrate the main building blocks of peer-to-peer comunications in go-ethereum. They are organized in chapters, where every example in a chapter (ideally) builds on the next.
 
