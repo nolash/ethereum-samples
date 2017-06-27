@@ -1,0 +1,58 @@
+\subsection{Getting hooked up}
+
+Now we bring up two of the servers as in the previous example and connect them. That is, connect one to the other. They act as consenting adults; the connection will be mutual, or none at all.
+
+\begin{lstlisting}[caption=A2\_Connect.go - Generic server creation,firstnumber=15]
+func newServer(privkey *ecdsa.PrivateKey, name string, version string, port int) *p2p.Server {
+
+	// we need to explicitly allow at least one peer
+	// otherwise the connection attempt will be refused
+	cfg := p2p.Config{
+		PrivateKey: privkey,
+		Name:       common.MakeName(name, version),
+		MaxPeers:   1,
+	}
+	if port > 0 {
+		cfg.ListenAddr = fmt.Sprintf(":%d", port)
+	}
+	srv := &p2p.Server{
+		Config: cfg,
+	}
+	return srv
+}
+\end{lstlisting}
+
+The code is almost the same as before, except for two things:
+
+We are specifying the \emph{port} explicitly. It has a default value, but when we are setting up two servers on the same host we need different ports for them. Otherwise the OS will complain loudly.
+
+Also, with the \verb|MaxPeers| setting we're telling the server that it will allow one and only one peer to connect to it. Without this setting the value will be 0, which means the node will play very hard-to-get and any attempt of connecting will be coldly rejected. If you believe more is merrier, which is usually the case in p2p networks, this setting will usually be higher.
+\begin{lstlisting}[caption=A2\_Connect.go - Start servers,firstnumber=46]
+	srv_one := newServer(privkey_one, "foo", "42", 0)
+	err = srv_one.Start()
+	if err != nil {
+		demo.Log.Crit("Start p2p.Server #1 failed", "err", err)
+	}
+
+	srv_two := newServer(privkey_two, "bar", "666", 31234)
+	err = srv_two.Start()
+	if err != nil {
+		demo.Log.Crit("Start p2p.Server #2 failed", "err", err)
+	}
+\end{lstlisting}
+
+In the same manner as before, we start the two servers. We give the second different parameters for name, version and port.
+
+\begin{lstlisting}[caption=A2\_Connect.go - Connect,firstnumber=58]
+	// get the node instance of the second server
+	node_two := srv_two.Self()
+
+	// add it as a peer to the first node
+	// the connection and crypto handshake will be performed automatically
+	srv_one.AddPeer(node_two)
+\end{lstlisting}
+
+The \verb|Self()| call on the server gives you back a \gls{discovernode} object. This object represents the server as a node, and contains all the information needed for a connection. So we can simply pass this \gls{discovernode} as an argument to the aptly-named \verb|AddPeer| method of the server. Connection is made. \textbf{Victory is ours}.
+
+\subsubsection{A note on nodes}
+The term \verb|node| used here is one of many notions of node in the go-ethereum code base, which at some point surely will confuse you. This flavor of node has to do with finding (discovering) nodes to connect to, and connect to them. And this specific object holds information specific to the connection, like IP information and an ID, or pretty much what makes up the \gls{enode} string we mentioned in the last section. See how it all neatly fits together?

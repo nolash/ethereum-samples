@@ -14,7 +14,8 @@ import (
 // create a server
 func newServer(privkey *ecdsa.PrivateKey, name string, version string, port int) *p2p.Server {
 
-	// we need to explicitly allow at least one peer, otherwise the connection attempt will be refused
+	// we need to explicitly allow at least one peer
+	// otherwise the connection attempt will be refused
 	cfg := p2p.Config{
 		PrivateKey: privkey,
 		Name:       common.MakeName(name, version),

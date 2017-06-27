@@ -1,0 +1,120 @@
+\documentclass[a4paper]{article}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{fullpage}
+\usepackage{comment}
+\usepackage{listings}
+\usepackage[autostyle]{csquotes}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{listings-golang}
+\usepackage{glossaries}
+\lstset{
+	basicstyle=\footnotesize,
+	numbers=left,
+	numberstyle=\tiny,
+	showstringspaces=false,
+	keywordstyle=\color{Purple},
+	stringstyle=\color{ForestGreen},
+	commentstyle=\color{Gray},
+	language=Golang
+}
+\newglossaryentry{discovernode}
+{
+	name={discovery node},
+	description={},
+	plural={discovery nodes}
+}
+\newglossaryentry{ethnode}
+{
+	name={ethereum node},
+	description={},
+	plural={ethereum nodes}
+}
+\newglossaryentry{nodep2p} 
+{
+	name={p2p node},
+	description={
+	},
+	plural={p2p nodes}
+
+}
+\newglossaryentry{rlp}
+{
+	name={rlp},
+	description={
+	}
+}
+\newglossaryentry{rlpx}
+{
+	name={rlpx},
+	description={\gls{rlp}
+}
+}
+\newglossaryentry{nodeservice} 
+{
+	name={node service},
+	description={
+	},
+	plural={node services}
+}
+\newglossaryentry{servicenode}
+{
+name={sevicenode},
+description={A code package that serves one or more \glspl{nodeservice} to a \gls{nodep2p} over an \gls{rlpx}-encoded tcp/ip connection.
+}
+}
+\newglossaryentry{enode}
+{
+name={enode},
+description={a uri scheme for an ethereum \gls{servicenode}, preceded by \verb|enode://|. The data part is comprised of its \textit{public id} and \gls{host string} separated by '@'.
+}
+}
+\newglossaryentry{p2pserver}
+{
+	name={devp2p server},
+	description={some text
+		some more text
+	}
+}
+\newglossaryentry{devp2p}
+{
+	name={devp2p},
+	description={Popular name for the lowest level of peer-to-peer communication in the go-ethereum codebase.}
+}
+\makeglossaries
+\newacronym[see={[Glossary:]{servicenode}}]{node}{node}{servicenode}
+\author{lash}
+\begin{document}
+\title{getting started with devp2p}
+\date{\today\\ v0.2}
+\maketitle
+
+\section*{Introduction}
+These tutorials show you how to make \glspl{ethnode} communicate with each other using the \verb|go-ethereum| code base. They do \emph{not} show you \emph{how} to program, nor does it provide entry-level familiarity to the \verb|golang| programming language, which \verb|go-ethereum| is written in.
+
+For the latter I can warmly recommend taking the official ``go tour'', but be warned; although \verb|golang| aims at providing friendly access to fairly low-level operations, it's still fairly low-level. So if you come from the less cumbersome environment of web-scripting and such, you're probably in for a challenge.
+\newline
+
+The Ethersphere, like its crypto comrades, dabbles quite a bit in moving individual bytes around before crunching them with big number math. However, most of the code we shall see fortunately manages to steer clear of that, and concentrates on some nice, magic function calls that spares us a few pints of elbow grease. 
+
+The meaty parts of this document are code examples that all centre on runnable mini-applications that reveal features and structure in small incremental steps. And they are even grouped in themes that incrementally add to the complexity of components of the code stack that we will be using in everyday p2p life.
+
+In the current version of this document, the layers we will peel are as follows:
+\begin{enumerate}
+	\item \textbf{The \gls{p2pserver}}; connections and messages
+	\item \textbf{Remote Procedure Calls}; defining and using APIs
+	\item \textbf{Services}; bringing protocols and APIs together
+	\item \textbf{Pss}: relay messages across peer-to-peer connections
+\end{enumerate}
+\section{p2p in Ethereum}
+\section{the code examples}
+% insert articles here 
+\input{A1.latex}
+\input{A2.latex}
+\pagebreak
+\begin{figure}[t]
+	\caption{my first figure ever}
+\includegraphics[width=0.5\textwidth]{sep-man-red}
+\end{figure}
+\printglossaries
+\end{document}
