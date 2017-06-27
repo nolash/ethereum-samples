@@ -1,11 +1,10 @@
-\documentclass[a4paper]{article}
+\documentclass[a4paper,dvipsnames]{article}
+\usepackage{tcolorbox}
 \usepackage{hyperref}
-\usepackage{graphicx}
 \usepackage{fullpage}
 \usepackage{comment}
 \usepackage{listings}
 \usepackage[autostyle]{csquotes}
-\usepackage[dvipsnames]{xcolor}
 \usepackage{listings-golang}
 \usepackage{glossaries}
 \lstset{
@@ -16,7 +15,7 @@
 	keywordstyle=\color{Purple},
 	stringstyle=\color{ForestGreen},
 	commentstyle=\color{Gray},
-	language=Golang
+	language=Golang,
 }
 \newglossaryentry{discovernode}
 {
@@ -90,6 +89,9 @@ description={a uri scheme for an ethereum \gls{servicenode}, preceded by \verb|e
 \maketitle
 
 \section*{Introduction}
+\begin{tcolorbox}[colback=Lavender,colframe=Red,arc=0mm]
+This document is work in progress. In the first version deemed fit for release, this pink box will no longer be here.
+\end{tcolorbox}
 These tutorials show you how to make \glspl{ethnode} communicate with each other using the \verb|go-ethereum| code base. They do \emph{not} show you \emph{how} to program, nor does it provide entry-level familiarity to the \verb|golang| programming language, which \verb|go-ethereum| is written in.
 
 For the latter I can warmly recommend taking the official ``go tour'', but be warned; although \verb|golang| aims at providing friendly access to fairly low-level operations, it's still fairly low-level. So if you come from the less cumbersome environment of web-scripting and such, you're probably in for a challenge.
@@ -107,14 +109,9 @@ In the current version of this document, the layers we will peel are as follows:
 	\item \textbf{Pss}: relay messages across peer-to-peer connections
 \end{enumerate}
 \section{p2p in Ethereum}
+[\ldots]
 \section{the code examples}
 % insert articles here 
 \input{A1.latex}
 \input{A2.latex}
-\pagebreak
-\begin{figure}[t]
-	\caption{my first figure ever}
-\includegraphics[width=0.5\textwidth]{sep-man-red}
-\end{figure}
-\printglossaries
 \end{document}
