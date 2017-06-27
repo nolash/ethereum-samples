@@ -100,7 +100,7 @@ func main() {
 		demo.Log.Crit("Could not get rpcclient 'right' via p2p.Server", "err", err)
 	}
 
-	demo.Log.Debug("pss send", "left", baseaddr_left, "right", baseaddr_right)
+	demo.Log.Debug("pss send", "left", baseaddr_left, "leftlen", len(baseaddr_left), "right", baseaddr_right, "rightlen", len(baseaddr_right))
 
 	// connect the nodes
 	p2pnode_mid := stack_mid.Server().Self()
@@ -111,6 +111,7 @@ func main() {
 	// create a subscription on the receiver node.
 	topic := pss.NewTopic(demo.FooProtocolName, demo.FooProtocolVersion)
 	msgC := make(chan pss.APIMsg)
+
 	sub, err := rpcclient_right.Subscribe(context.Background(), "pss", msgC, "receive", topic)
 	if err != nil {
 		demo.Log.Crit("pss subscribe fail", "err", err)
