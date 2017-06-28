@@ -75,11 +75,11 @@ func main() {
 	// the connection and crypto handshake will be performed automatically
 	srv_one.AddPeer(node_two)
 
-	// inspect the results
-	demo.Log.Info("after add", "node one peers", srv_one.Peers(), "node two peers", srv_two.Peers())
-
 	// receives when the event is received
 	<-quitC
+
+	// inspect the results
+	demo.Log.Info("after add", "node one peers", srv_one.Peers(), "node two peers", srv_two.Peers())
 
 	// terminate subscription
 	sub_one.Unsubscribe()

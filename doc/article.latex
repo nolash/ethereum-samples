@@ -17,6 +17,12 @@
 	commentstyle=\color{Gray},
 	language=Golang,
 }
+\newglossaryentry{peerevent}
+{
+	name={peer-event},
+	description={},
+	plural={peer-events}
+}
 \newglossaryentry{discovernode}
 {
 	name={discovery node},
@@ -114,4 +120,5 @@ In the current version of this document, the layers we will peel are as follows:
 % insert articles here 
 \input{A1.latex}
 \input{A2.latex}
+\input{A3.latex}
 \end{document}

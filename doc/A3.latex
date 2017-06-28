@@ -1,0 +1,70 @@
+\subsection{Know what's going on}
+
+So how to we get rid of that unaesthetic and unprecise timeout from the last example? We use the \glspl{peerevent}, of course. When connections start and stop, and when messages are sent and received, \glspl{peerevent} are emitted. 
+
+\begin{lstlisting}[caption=A3\_Events.go - Subscribe to events,firstnumber=60]
+// set up the event subscription on the first server
+eventC := make(chan *p2p.PeerEvent)
+sub_one := srv_one.SubscribeEvents(eventC)
+\end{lstlisting}
+
+All you have to do is pass a channel to the \verb|SubscribeEvents| method of the \gls{p2pserver}, and you will start receiving them through it.
+
+\begin{lstlisting}[caption=A3\_Events.go - Receive events,firstnumber=64]
+// listen for events
+go func() {
+	peerevent := <-eventC
+	demo.Log.Info("received peerevent", "type", peerevent.Type, "peer", peerevent.Peer)
+	quitC <- true
+}()
+\end{lstlisting}
+
+Then fork before the \verb|AddPeer| call, and listen on the channel for an event. Of course normally we would check what event it is, what peer it came from and so on and so forth. In this case, however, we're not really doing much, so we know that the event will be of type ``add'' and the peer will be the node we're \emph{not} subscribing to. 
+
+\begin{lstlisting}[caption=p2p/peer.go - PeerEvents]
+// PeerEventType is the type of peer events emitted by a p2p.Server
+type PeerEventType string
+
+const (
+	// PeerEventTypeAdd is the type of event emitted when a peer is added
+	// to a p2p.Server
+	PeerEventTypeAdd PeerEventType = "add"
+
+	// PeerEventTypeDrop is the type of event emitted when a peer is
+	// dropped from a p2p.Server
+	PeerEventTypeDrop PeerEventType = "drop"
+
+	// PeerEventTypeMsgSend is the type of event emitted when a
+	// message is successfully sent to a peer
+	PeerEventTypeMsgSend PeerEventType = "msgsend"
+
+	// PeerEventTypeMsgSend is the type of event emitted when a
+	// message is successfully sent to a peer
+	PeerEventTypeMsgRecv PeerEventType = "msgrecv"
+)
+
+// PeerEvent is an event emitted when peers are either added or dropped from
+// a p2p.Server or when a message is sent or received on a peer connection
+type PeerEvent struct {
+	Type    PeerEventType   `json:"type"`
+	Peer    discover.NodeID `json:"peer"`
+	Error   string          `json:"error,omitempty"`
+	MsgCode *uint64         `json:"msg_code,omitempty"`
+	MsgSize *uint32         `json:"msg_size,omitempty"`
+}
+\end{lstlisting}
+
+A quick look in the \verb|peer.go| file in the \verb|p2p| package tells what kind of \glspl{peerevent} we have, and how they're stuctured.
+
+\begin{lstlisting}[caption=A3\_Events.go - Receive events,firstnumber=78]
+// receives when the event is received
+<-quitC
+
+// inspect the results
+demo.Log.Info("after add", "node one peers", srv_one.Peers(), "node two peers", srv_two.Peers())
+
+// terminate subscription
+sub_one.Unsubscribe()
+\end{lstlisting}
+
+When the connection is completed (on the node we're subscribing to), we output the logline as before. Don't feel guilty about terminating the subscription after just one item. You'll get your money's worth later.

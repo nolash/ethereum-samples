@@ -52,7 +52,17 @@ In the same manner as before, we start the two servers. We give the second diffe
 	srv_one.AddPeer(node_two)
 \end{lstlisting}
 
-The \verb|Self()| call on the server gives you back a \gls{discovernode} object. This object represents the server as a node, and contains all the information needed for a connection. So we can simply pass this \gls{discovernode} as an argument to the aptly-named \verb|AddPeer| method of the server. Connection is made. \textbf{Victory is ours}.
+The \verb|Self()| call on the server gives you back a \gls{discovernode} object. This object represents the server as a node, and contains all the information needed for a connection. So we can simply pass this \gls{discovernode} as an argument to the aptly-named \verb|AddPeer| method of the server.
+
+\begin{lstlisting}[caption=A2\_Connect.go - Check,firstnumber=65]
+// give the connection a glimpse of time to complete
+time.Sleep(time.Millisecond * 100)
+
+// inspect the results
+demo.Log.Info("after add", "node one peers", srv_one.Peers(), "node two peers", srv_two.Peers())
+\end{lstlisting}
+
+The connection is created asynchronously, and might take a split second to complete. So if we rush into proving that we now have a shiny new peer in our connection list, we will most certainly be disappointed. So we give it pleeenty of time a.k.a. 100 milliseconds to complete. In the next section we'll learn a way more clever way to do this. Anyway you can rejoice for now: Connection is made. \textbf{Victory is ours}.
 
 \subsubsection{A note on nodes}
 The term \verb|node| used here is one of many notions of node in the go-ethereum code base, which at some point surely will confuse you. This flavor of node has to do with finding (discovering) nodes to connect to, and connect to them. And this specific object holds information specific to the connection, like IP information and an ID, or pretty much what makes up the \gls{enode} string we mentioned in the last section. See how it all neatly fits together?
