@@ -2,7 +2,9 @@
 
 ## CAVEAT
 
-**These examples build on the https://github.com/ethersphere/go-ethereum/tree/network-testing-framework branch.** As of this writing this branch is currently being merged into ethereum master. The subfolder "standalone" holds examples A through C without use of the local common package, which renders some of them usable with the current ethereum master branch.
+**These examples build on the `network-testing-framework` branch:** https://github.com/ethersphere/go-ethereum/commit/fc904b482caab222af8d664ef5f37f84803c446d
+
+As of this writing this branch is currently being merged into ethereum master. The subfolder "standalone" holds examples A through C without use of the local common package, which renders some of them usable with the current ethereum master branch.
 
 ## DESCRIPTION
 
