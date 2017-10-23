@@ -1,18 +1,22 @@
 package common
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
-	"os"
+	"github.com/ethereum/go-ethereum/swarm/network"
 )
 
 const (
@@ -130,6 +134,7 @@ func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContex
 		if err != nil {
 			Log.Crit("unable to configure swarm", "err", err)
 		}
+		//return swarm.NewSwarm(ctx, nil, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 		return swarm.NewSwarm(ctx, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 	}
 }
@@ -201,4 +206,46 @@ func getEnodeFromRPC(rawurl string) (string, error) {
 		return "", fmt.Errorf("RPC nodeinfo call failed: %v", err)
 	}
 	return nodeinfo.Enode, nil
+}
+
+func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error {
+	var ids []discover.NodeID
+	var addrs [][]byte
+	for _, r := range rpcs {
+		var nodeinfo p2p.NodeInfo
+		err := r.Call(&nodeinfo, "admin_nodeInfo")
+		if err != nil {
+			return err
+		}
+		p2pnode, err := discover.ParseNode(nodeinfo.Enode)
+		if err != nil {
+			return err
+		}
+		ids = append(ids, p2pnode.ID)
+		var bzzaddr []byte
+		err = r.Call(&bzzaddr, "pss_baseAddr")
+		if err != nil {
+			return err
+		}
+		addrs = append(addrs, bzzaddr)
+	}
+	peerpot := network.NewPeerPot(minbinsize, ids, addrs)
+	for {
+		healthycount := 0
+		for i, r := range rpcs {
+			var health network.Health
+			err := r.Call(&health, "hive_healthy", peerpot)
+			if err != nil {
+				return err
+			}
+			Log.Debug("health", "i", i, "addr", common.ToHex(addrs[i]), "id", ids[i], "info", health)
+			if health.KnowNN && health.GotNN && health.Full {
+				healthycount++
+			}
+		}
+		if healthycount == len(rpcs) {
+			break
+		}
+	}
+	return nil
 }
