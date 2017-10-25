@@ -1,10 +1,16 @@
 # p2p programming in go-ethereum
 
-## CAVEAT
+## USING THESE EXAMPLES
 
-**These examples build on the `network-testing-framework` branch:** https://github.com/ethersphere/go-ethereum/commit/fc904b482caab222af8d664ef5f37f84803c446d
+Pss is part of Swarm POC 3, which is currently being merged into ethereum master. Before this merge is completed, the code examples cannot be run with the current official go-ethereum implementation. They will also not work with any of the active swarm development branches, because it relies on total functionality provided only in part by each of them.
 
-As of this writing this branch is currently being merged into ethereum master. The subfolder "standalone" holds examples A through C without use of the local common package, which renders some of them usable with the current ethereum master branch.
+This repository keeps a temporary merge branch providing all necessary functionality along with a pss API that will work as-is after the POC 3 merge. Please use this branch for these examples.
+
+https://github.com/nolash/go-ethereum/tree/pss-tmp-binfix
+
+If you only plan to use the `pss` library (you do not need a working `swarm` executable), please use this branch:
+
+https://github.com/ethersphere/go-ethereum/tree/pss
 
 ## DESCRIPTION
 
@@ -78,9 +84,9 @@ This entity encapsulates the p2p server and the RPC call APIs, in packages calle
 
   Servicenode ping protocol implementation controlled through RPC
 
-### D - Pss
+### D - Complex nodes
 
-Pss enables encrypted messaging between nodes that aren't directly connected through p2p server, by relaying the message through nodes between them. Relaying is done with swarm's kademlia routing. The message is encrypted end-to-end using ephemeral public key cryptography. 
+`devp2p` provides a framework for designing autonomous protocol handling code. This chapter shows how to implement one, and how to combine several services providing their own APIs and protocols in the same service node.
 
 * D1_Protocols.go
 
@@ -90,14 +96,30 @@ Pss enables encrypted messaging between nodes that aren't directly connected thr
 
   Registering multiple services with the service node
 
-* D3_Pss.go
+### E - Pss
 
-  Demonstrates send and receive RPC for pss 
+Pss enables encrypted messaging between nodes that aren't directly connected through p2p server, by relaying the message through nodes between them. Relaying is done with swarm's kademlia routing. The message is encrypted end-to-end using ephemeral public key cryptography. 
 
-* D4_SwarmPss.go
+* E1_Pss.go
 
-  Relaying pss message over three service nodes running pss-enabled swarm service.
+  Set up a pss-activated swarm node, and send a message using public key encryption. 
 
-* D5_PssClient.go
+* E2_PssRouting.go
 
-  Convenience package transparently encapsulating pss RPC with p2p protocol abstracting layer
+  Demonstrates how to perform dark routing in pss.
+
+* E3_PssSym.go
+
+  Create an arbitrary symmetric encryption key, and send message with it.
+
+* E4_PssHandshake.go
+
+  Using the builtin convenience method for Diffie-Hellmann key exchange.
+
+* E5_PssProtocol.go
+
+  Implementing devp2p style protocols over pss.
+
+* E6_PssClient.go
+
+  Mounting devp2p style protocols on an RPC connection.
