@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -13,16 +14,20 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
+	"github.com/ethereum/go-ethereum/swarm/pss"
 )
 
 const (
-	P2PDefaultPort = 30100
-	IPCName        = "demo.ipc"
-	bzzNetworkId   = 3
+	BzzDefaultNetworkId = 4242
+	P2PDefaultPort      = 34242
+	WSDefaultPort       = 18543
+	BzzDefaultPort      = 8542
+	IPCName             = "demo.ipc"
 )
 
 var (
@@ -71,43 +76,11 @@ func init() {
 	log.Root().SetHandler(h)
 }
 
-// set up a line of three pss-enabled hosts offering websocket interface
-//func NewPssPool() (ipc_left *rpc.Client, ipc_right *rpc.Client, stopfunc func(), err error) {
-func NewPssPool() (port_left int, port_right int, stopfunc func(), err error) {
-
-	var stacks []*node.Node
-	for i := 0; i < 3; i++ {
-		stack, err := NewServiceNode(P2PDefaultPort+i, 0, node.DefaultWSPort+i, "pss")
-		if err != nil {
-			return 0, 0, nil, fmt.Errorf("bzz service #%d create fail: %v", i+1, err)
-		}
-		err = stack.Register(NewSwarmService(stack, 30399+i))
-		if err != nil {
-			return 0, 0, nil, fmt.Errorf("bzz service #%d register fail: %v", i+1, err)
-		}
-		err = stack.Start()
-		if err != nil {
-			return 0, 0, nil, fmt.Errorf("servicenode #%d start failed: %v", i+1, err)
-		}
-		stacks = append(stacks, stack)
-	}
-
-	// connect the nodes
-	p2pnode_mid := stacks[1].Server().Self()
-	stacks[0].Server().AddPeer(p2pnode_mid)
-	stacks[2].Server().AddPeer(p2pnode_mid)
-
-	stop := func() {
-		for i := 0; i < len(stacks); i++ {
-			stacks[i].Stop()
-		}
-	}
-
-	return node.DefaultWSPort, node.DefaultWSPort + 2, stop, nil
-	//return ipc_left, ipc_right, stop, nil
+func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContext) (node.Service, error) {
+	return NewSwarmServiceWithProtocol(stack, bzzport, nil, nil)
 }
 
-func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContext) (node.Service, error) {
+func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protocols.Spec, protocols []*p2p.Protocol) func(ctx *node.ServiceContext) (node.Service, error) {
 	return func(ctx *node.ServiceContext) (node.Service, error) {
 		// get the encrypted private key file
 		keyid := fmt.Sprintf("%s/D3_Pss/nodekey", stack.DataDir())
@@ -129,13 +102,23 @@ func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContex
 		pssEnabled := true
 		cors := "*"
 
-		bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, bzzNetworkId)
+		bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, BzzDefaultNetworkId)
 		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
 		if err != nil {
 			Log.Crit("unable to configure swarm", "err", err)
 		}
-		//return swarm.NewSwarm(ctx, nil, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
-		return swarm.NewSwarm(ctx, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		svc, err := swarm.NewSwarm(ctx, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, s := range specs {
+			_, err := svc.RegisterPssProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
+			if err != nil {
+				return nil, err
+			}
+		}
+		return svc, nil
 	}
 }
 
@@ -143,6 +126,8 @@ func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContex
 func NewServiceNode(port int, httpport int, wsport int, modules ...string) (*node.Node, error) {
 	cfg := &node.DefaultConfig
 	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", port)
+	cfg.P2P.EnableMsgEvents = true
+	//cfg.P2P.NoDiscovery = true
 	cfg.IPCPath = IPCName
 	cfg.DataDir = Datadir(port)
 	if httpport > 0 {
@@ -246,6 +231,7 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 		if healthycount == len(rpcs) {
 			break
 		}
+		time.Sleep(time.Millisecond * 250)
 	}
 	return nil
 }

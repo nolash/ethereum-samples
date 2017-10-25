@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 }
 
 func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.ServiceContext) (node.Service, error) {
@@ -50,12 +50,16 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 
 func main() {
 
-	// create two nodes
+	// create three nodes
 	l_stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
 	r_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+1, 0, 0)
+	if err != nil {
+		demo.Log.Crit(err.Error())
+	}
+	c_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+2, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
@@ -71,6 +75,11 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode 'right' pss register fail", "err", err)
 	}
+	c_svc := newService(r_stack.InstanceDir(), demo.BzzDefaultPort+2, demo.BzzDefaultNetworkId)
+	err = c_stack.Register(c_svc)
+	if err != nil {
+		demo.Log.Crit("servicenode 'right' pss register fail", "err", err)
+	}
 
 	// start the nodes
 	err = l_stack.Start()
@@ -81,9 +90,14 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	err = c_stack.Start()
+	if err != nil {
+		demo.Log.Crit("servicenode start failed", "err", err)
+	}
 
 	// connect the nodes to the middle
-	l_stack.Server().AddPeer(r_stack.Server().Self())
+	c_stack.Server().AddPeer(l_stack.Server().Self())
+	c_stack.Server().AddPeer(r_stack.Server().Self())
 
 	// get the rpc clients
 	l_rpcclient, err := l_stack.Attach()
@@ -110,12 +124,8 @@ func main() {
 	msgC := make(chan pss.APIMsg)
 	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic)
 
-	// get the recipient node's swarm overlay address
+	// supply no address for routing
 	var r_bzzaddr []byte
-	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
-	if err != nil {
-		demo.Log.Crit("pss get pubkey fail", "err", err)
-	}
 
 	// get the receiver's public key
 	var r_pubkey []byte
@@ -149,6 +159,7 @@ func main() {
 	sub.Unsubscribe()
 	r_rpcclient.Close()
 	l_rpcclient.Close()
+	c_stack.Stop()
 	r_stack.Stop()
 	l_stack.Stop()
 }

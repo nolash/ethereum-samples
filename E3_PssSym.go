@@ -3,11 +3,11 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
@@ -111,32 +111,40 @@ func main() {
 	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic)
 
 	// get the recipient node's swarm overlay address
+	var l_bzzaddr []byte
+	err = r_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
+	if err != nil {
+		demo.Log.Crit("pss get baseaddr fail", "err", err)
+	}
 	var r_bzzaddr []byte
 	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
 	if err != nil {
-		demo.Log.Crit("pss get pubkey fail", "err", err)
+		demo.Log.Crit("pss get baseaddr fail", "err", err)
 	}
 
-	// get the receiver's public key
-	var r_pubkey []byte
-	err = r_rpcclient.Call(&r_pubkey, "pss_getPublicKey")
+	symkey := make([]byte, 32)
+	c, err := rand.Read(symkey)
 	if err != nil {
-		demo.Log.Crit("pss get pubkey fail", "err", err)
+		demo.Log.Crit("symkey gen fail", "err", err)
+	} else if c < 32 {
+		demo.Log.Crit("symkey size mismatch, expected 32", "size", c)
 	}
 
-	// make the sender aware of the receiver's public key
-	err = l_rpcclient.Call(nil, "pss_setPeerPublicKey", r_pubkey, topic, r_bzzaddr)
+	var l_symkeyid string
+	err = l_rpcclient.Call(&l_symkeyid, "pss_setSymmetricKey", symkey, topic, r_bzzaddr, true)
 	if err != nil {
-		demo.Log.Crit("pss get pubkey fail", "err", err)
+		demo.Log.Crit("pss set symkey fail", "err", err)
 	}
 
-	// convert the pubkey to hex string
-	// we need this for the send api call
-	pubkeyid := common.ToHex(r_pubkey)
+	var r_symkeyid string
+	err = r_rpcclient.Call(&r_symkeyid, "pss_setSymmetricKey", symkey, topic, l_bzzaddr, true)
+	if err != nil {
+		demo.Log.Crit("pss set symkey fail", "err", err)
+	}
 
 	// send message using asymmetric encryption
 	// since it's sent to ourselves, it will not go through pss forwarding
-	err = l_rpcclient.Call(nil, "pss_sendAsym", pubkeyid, topic, []byte("bar"))
+	err = l_rpcclient.Call(nil, "pss_sendSym", l_symkeyid, topic, []byte("bar"))
 	if err != nil {
 		demo.Log.Crit("pss send fail", "err", err)
 	}

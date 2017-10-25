@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	//"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
@@ -19,7 +20,7 @@ import (
 )
 
 func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 }
 
 func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.ServiceContext) (node.Service, error) {
@@ -50,12 +51,16 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 
 func main() {
 
-	// create two nodes
+	// create three nodes
 	l_stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
 	r_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+1, 0, 0)
+	if err != nil {
+		demo.Log.Crit(err.Error())
+	}
+	c_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+2, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
@@ -71,6 +76,11 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode 'right' pss register fail", "err", err)
 	}
+	c_svc := newService(c_stack.InstanceDir(), demo.BzzDefaultPort+2, demo.BzzDefaultNetworkId)
+	err = c_stack.Register(c_svc)
+	if err != nil {
+		demo.Log.Crit("servicenode 'right' pss register fail", "err", err)
+	}
 
 	// start the nodes
 	err = l_stack.Start()
@@ -81,9 +91,14 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	err = c_stack.Start()
+	if err != nil {
+		demo.Log.Crit("servicenode start failed", "err", err)
+	}
 
 	// connect the nodes to the middle
-	l_stack.Server().AddPeer(r_stack.Server().Self())
+	c_stack.Server().AddPeer(l_stack.Server().Self())
+	c_stack.Server().AddPeer(r_stack.Server().Self())
 
 	// get the rpc clients
 	l_rpcclient, err := l_stack.Attach()
@@ -105,50 +120,94 @@ func main() {
 		demo.Log.Crit("pss string to topic fail", "err", err)
 	}
 
-	// subscribe to incoming messages on the receiving sevicenode
-	// this will register a message handler on the specified topic
-	msgC := make(chan pss.APIMsg)
-	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic)
+	// subscribe to incoming messages on both servicenodes
+	// this will register message handlers, needed to receive reciprocal comms
+	l_msgC := make(chan pss.APIMsg)
+	l_sub_pss, err := l_rpcclient.Subscribe(context.Background(), "pss", l_msgC, "receive", topic)
+	if err != nil {
+		demo.Log.Crit("pss subscribe error", "err", err)
+	}
+	r_msgC := make(chan pss.APIMsg)
+	r_sub_pss, err := r_rpcclient.Subscribe(context.Background(), "pss", r_msgC, "receive", topic)
+	if err != nil {
+		demo.Log.Crit("pss subscribe error", "err", err)
+	}
 
-	// get the recipient node's swarm overlay address
-	var r_bzzaddr []byte
-	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
+	// get the public keys
+	var l_pubkey []byte
+	err = l_rpcclient.Call(&l_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
-
-	// get the receiver's public key
 	var r_pubkey []byte
 	err = r_rpcclient.Call(&r_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
 
-	// make the sender aware of the receiver's public key
-	err = l_rpcclient.Call(nil, "pss_setPeerPublicKey", r_pubkey, topic, r_bzzaddr)
+	// get the overlay addresses
+	var l_bzzaddr []byte
+	err = l_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
 	if err != nil {
-		demo.Log.Crit("pss get pubkey fail", "err", err)
+		demo.Log.Crit("pss get baseaddr fail", "err", err)
+	}
+	var r_bzzaddr []byte
+	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
+	if err != nil {
+		demo.Log.Crit("pss get baseaddr fail", "err", err)
 	}
 
-	// convert the pubkey to hex string
+	// make the nodes aware of each others' public keys
+	err = l_rpcclient.Call(nil, "pss_setPeerPublicKey", r_pubkey, topic, r_bzzaddr)
+	if err != nil {
+		demo.Log.Crit("pss set pubkey fail", "err", err)
+	}
+	err = r_rpcclient.Call(nil, "pss_setPeerPublicKey", l_pubkey, topic, l_bzzaddr)
+	if err != nil {
+		demo.Log.Crit("pss set pubkey fail", "err", err)
+	}
+
+	// activate handshake on both sides
+	err = l_rpcclient.Call(nil, "pss_addHandshake", topic)
+	if err != nil {
+		demo.Log.Crit("pss handshake activate fail", "err", err)
+	}
+	err = r_rpcclient.Call(nil, "pss_addHandshake", topic)
+	if err != nil {
+		demo.Log.Crit("pss handshake activate fail", "err", err)
+	}
+
 	// we need this for the send api call
 	pubkeyid := common.ToHex(r_pubkey)
 
+	// initiate handshake and retrieve symkeys
+	var symkeyids []string
+	err = l_rpcclient.Call(&symkeyids, "pss_handshake", pubkeyid, topic, true, true)
+	if err != nil {
+		demo.Log.Crit("handshake fail", "err", err)
+	}
+
+	// convert the pubkey to hex string
 	// send message using asymmetric encryption
-	// since it's sent to ourselves, it will not go through pss forwarding
-	err = l_rpcclient.Call(nil, "pss_sendAsym", pubkeyid, topic, []byte("bar"))
+	err = l_rpcclient.Call(nil, "pss_sendSym", symkeyids[0], topic, []byte("bar"))
 	if err != nil {
 		demo.Log.Crit("pss send fail", "err", err)
 	}
 
 	// get the incoming message
-	inmsg := <-msgC
-	demo.Log.Info("pss received", "msg", string(inmsg.Msg), "from", fmt.Sprintf("%x", inmsg.Key))
+	for ; ; inmsg := <-r_msgC {
+		if !inmsg.Asymmetric {
+			demo.Log.Info("pss received", "msg", fmt.Sprintf("%s", inmsg.Msg), "from", fmt.Sprintf("%x", inmsg.Key))
+			break
+		}
+	}
 
 	// bring down the servicenodes
-	sub.Unsubscribe()
+	l_sub_pss.Unsubscribe()
+	r_sub_pss.Unsubscribe()
 	r_rpcclient.Close()
 	l_rpcclient.Close()
+	c_stack.Stop()
 	r_stack.Stop()
 	l_stack.Stop()
 }
