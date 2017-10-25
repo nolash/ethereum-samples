@@ -24,10 +24,8 @@ import (
 
 const (
 	BzzDefaultNetworkId = 4242
-	P2PDefaultPort      = 34242
 	WSDefaultPort       = 18543
 	BzzDefaultPort      = 8542
-	IPCName             = "demo.ipc"
 )
 
 var (
@@ -40,15 +38,12 @@ var (
 	// out local port for p2p connections
 	P2PPort int
 
-	// predictable datadir name prefix
-	DatadirPrefix = ".data_"
-
 	// self-explanatory command line arguments
 	verbose      = flag.Bool("v", false, "more verbose logs")
 	remoteport   = flag.Int("p", 0, "remote port (enables remote RPC lookup of enode)")
 	remotehost   = flag.String("h", "127.0.0.1", "remote host (RPC, p2p)")
 	enode        = flag.String("e", "", "enode to connect to (overrides remote RPC lookup)")
-	p2plocalport = flag.Int("l", P2PDefaultPort, "local port for p2p connections")
+	p2plocalport = flag.Int("l", p2pPort, "local port for p2p connections")
 )
 
 // setup logging
@@ -124,16 +119,18 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 
 // set up the local service node
 func NewServiceNode(port int, httpport int, wsport int, modules ...string) (*node.Node, error) {
+	if port == 0 {
+		port = p2pPort
+	}
 	cfg := &node.DefaultConfig
 	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", port)
 	cfg.P2P.EnableMsgEvents = true
-	//cfg.P2P.NoDiscovery = true
-	cfg.IPCPath = IPCName
-	cfg.DataDir = Datadir(port)
+	cfg.P2P.NoDiscovery = true
+	cfg.IPCPath = ipcName
+	cfg.DataDir = fmt.Sprintf("%s%d", datadirPrefix, port)
 	if httpport > 0 {
 		cfg.HTTPHost = node.DefaultHTTPHost
 		cfg.HTTPPort = httpport
-		// cfg.HTTPModules = append(cfg.HTTPModules, "foo")
 	}
 	if wsport > 0 {
 		cfg.WSHost = node.DefaultWSHost
@@ -167,11 +164,6 @@ func NewServer(privkey *ecdsa.PrivateKey, name string, version string, proto p2p
 		Config: cfg,
 	}
 	return srv
-}
-
-// return a uniform datadir name
-func Datadir(port int) string {
-	return fmt.Sprintf("%s/%s%d", BasePath, DatadirPrefix, port)
 }
 
 // utility functions

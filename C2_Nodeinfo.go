@@ -3,27 +3,41 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 )
 
-func main() {
+var (
+	p2pPort       = 30100
+	ipcpath       = ".demo.ipc"
+	datadirPrefix = ".data_"
+)
 
-	// start servicenode
+func main() {
+	// set up the service node
 	cfg := &node.DefaultConfig
-	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", demo.P2PDefaultPort)
-	cfg.IPCPath = demo.IPCName
-	cfg.DataDir = demo.Datadir(demo.P2PDefaultPort)
+	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", p2pPort)
+	cfg.IPCPath = ipcpath
+	cfg.DataDir = fmt.Sprintf("%s%d", datadirPrefix, p2pPort)
+
+	// create the node instance with the config
 	stack, err := node.New(cfg)
 	if err != nil {
 		demo.Log.Crit("ServiceNode create fail", "err", err)
 	}
+
+	// start the node
 	err = stack.Start()
 	if err != nil {
 		demo.Log.Crit("ServiceNode start fail", "err", err)
 	}
+	defer os.RemoveAll(cfg.DataDir)
 
 	// get the info directly via the p2p server object
 	p2pserver := stack.Server()
@@ -41,8 +55,7 @@ func main() {
 	demo.Log.Info("Nodeinfo from IPC via ServiceNode", "enode", localnodeinfo.Enode, "IP", localnodeinfo.IP, "ID", localnodeinfo.ID, "listening address", localnodeinfo.ListenAddr)
 
 	// get the nodeinfo via external IPC
-	rpcclient, err = rpc.Dial(fmt.Sprintf("%s/%s", demo.Datadir(demo.P2PDefaultPort), demo.IPCName))
-
+	rpcclient, err = rpc.Dial(filepath.Join(cfg.DataDir, cfg.IPCPath))
 	if err != nil {
 		demo.Log.Crit("Could not get rpcclient via p2p.Server", "err", err)
 	}

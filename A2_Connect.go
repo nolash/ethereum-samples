@@ -4,11 +4,13 @@ package main
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
-	"time"
 )
 
 // create a server
@@ -62,7 +64,7 @@ func main() {
 	// the connection and crypto handshake will be performed automatically
 	srv_one.AddPeer(node_two)
 
-	// give the connection a glimpse of time to complete
+	// wait for the connection to complete
 	time.Sleep(time.Millisecond * 100)
 
 	// inspect the results

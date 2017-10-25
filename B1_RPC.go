@@ -2,7 +2,10 @@
 package main
 
 import (
+	"os"
+
 	"github.com/ethereum/go-ethereum/rpc"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 )
 
@@ -11,7 +14,7 @@ type FooAPI struct {
 }
 
 // a valid API method is exported, has a pointer receiver and returns error as last argument
-// the method will be called with <registeredname>_sayHello;
+// the method will be called with <registeredname>_helloWorld
 // (first letter in method is lowercase, module name and method name separated by underscore)
 func (api *FooAPI) HelloWorld() (string, error) {
 	return "foobar", nil
@@ -32,6 +35,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("IPC endpoint create fail", "err", err)
 	}
+	defer os.Remove(ipcpath)
 
 	// mount RPC server on IPC endpoint
 	// it will automatically detect and serve any valid methods

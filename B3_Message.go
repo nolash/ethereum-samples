@@ -4,12 +4,15 @@ package main
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"os"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
-	"sync"
 )
 
 var (
@@ -24,6 +27,11 @@ var (
 // it gets passed:
 // * an instance of p2p.Peer, which represents the remote peer
 // * an instance of p2p.MsgReadWriter, which is the io between the node and its peer
+
+type FooMsg struct {
+	Content string
+}
+
 var (
 	proto = p2p.Protocol{
 		Name:    "foo",
@@ -70,13 +78,8 @@ func (api *FooAPI) SendMsg(content string) error {
 	return nil
 }
 
-type FooMsg struct {
-	Content string
-}
-
 // create a server
 func newP2pServer(privkey *ecdsa.PrivateKey, name string, version string, port int) *p2p.Server {
-
 	// we need to explicitly allow at least one peer, otherwise the connection attempt will be refused
 	// we also need to explicitly tell the server to generate events for messages
 	cfg := p2p.Config{
@@ -189,6 +192,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
+	defer os.Remove(ipcpath)
 
 	// get the node instance of the second server
 	node_two := srv_two.Self()
