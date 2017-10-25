@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("ServiceNode start fail", "err", err)
 	}
-	defer os.RemoveAll(cfg.DataDir)
+	defer os.RemoveAll(stack.DataDir())
 
 	// shut down
 	err = stack.Stop()

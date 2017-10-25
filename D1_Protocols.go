@@ -3,11 +3,13 @@ package main
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
-	"sync"
 )
 
 var (
@@ -56,23 +58,24 @@ var (
 			pp := protocols.NewPeer(p, rw, &fooProtocol)
 
 			// send the message
-			go func() {
-				outmsg := &FooMsg{
-					V: 42,
-				}
-				err := pp.Send(outmsg)
-				if err != nil {
-					demo.Log.Error("Send p2p message fail", "err", err)
-				}
-				demo.Log.Info("sending message", "peer", p, "msg", outmsg)
-			}()
+			outmsg := &FooMsg{
+				V: 42,
+			}
+
+			err := pp.Send(outmsg)
+			if err != nil {
+				demo.Log.Error("Send p2p message fail", "err", err)
+			}
+			demo.Log.Info("sending message", "peer", p, "msg", outmsg)
 
 			// protocols abstraction provides a separate blocking run loop for the peer
-			// when this returns, the protocol will be terminated
+			// a separate handler function is passed to that loop to process incoming messages
 			run := &fooHandler{
 				peer: p,
 			}
-			err := pp.Run(run.handle)
+			err = pp.Run(run.handle)
+
+			// terminate the protocol
 			return err
 		},
 	}

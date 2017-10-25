@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	p2pPort       = 30100
-	ipcName       = "demo.ipc"
-	datadirPrefix = ".data_"
+	P2pPort       = 30100
+	IPCName       = "demo.ipc"
+	DatadirPrefix = ".data_"
 )
 
 var (

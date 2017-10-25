@@ -98,6 +98,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("ServiceNode create fail", "err", err)
 	}
+	defer os.RemoveAll(stack.DataDir())
 
 	// wrapper function for servicenode to start the service
 	foosvc := func(ctx *node.ServiceContext) (node.Service, error) {

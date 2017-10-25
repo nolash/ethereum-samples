@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("ServiceNode start fail", "err", err)
 	}
-	defer os.RemoveAll(cfg.DataDir)
+	defer os.RemoveAll(stack.DataDir())
 
 	// get the info directly via the p2p server object
 	p2pserver := stack.Server()

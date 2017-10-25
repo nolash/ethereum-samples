@@ -43,7 +43,7 @@ var (
 	remoteport   = flag.Int("p", 0, "remote port (enables remote RPC lookup of enode)")
 	remotehost   = flag.String("h", "127.0.0.1", "remote host (RPC, p2p)")
 	enode        = flag.String("e", "", "enode to connect to (overrides remote RPC lookup)")
-	p2plocalport = flag.Int("l", p2pPort, "local port for p2p connections")
+	p2plocalport = flag.Int("l", P2pPort, "local port for p2p connections")
 )
 
 // setup logging
@@ -120,14 +120,14 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 // set up the local service node
 func NewServiceNode(port int, httpport int, wsport int, modules ...string) (*node.Node, error) {
 	if port == 0 {
-		port = p2pPort
+		port = P2pPort
 	}
 	cfg := &node.DefaultConfig
 	cfg.P2P.ListenAddr = fmt.Sprintf(":%d", port)
 	cfg.P2P.EnableMsgEvents = true
 	cfg.P2P.NoDiscovery = true
-	cfg.IPCPath = ipcName
-	cfg.DataDir = fmt.Sprintf("%s%d", datadirPrefix, port)
+	cfg.IPCPath = IPCName
+	cfg.DataDir = fmt.Sprintf("%s%d", DatadirPrefix, port)
 	if httpport > 0 {
 		cfg.HTTPHost = node.DefaultHTTPHost
 		cfg.HTTPPort = httpport

@@ -3,9 +3,12 @@ package main
 
 import (
 	// "fmt"
+	"os"
+
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 )
 
@@ -25,7 +28,7 @@ func (self *fooService) APIs() []rpc.API {
 		rpc.API{
 			Namespace: "foo",
 			Version:   "0.42",
-			Service:   newFooAPI(self.v),
+			Service:   &FooAPI{self.v},
 			Public:    true,
 		},
 	}
@@ -45,12 +48,6 @@ func (self *fooService) Stop() error {
 
 type FooAPI struct {
 	v *int
-}
-
-func newFooAPI(v *int) *FooAPI {
-	return &FooAPI{
-		v: v,
-	}
 }
 
 func (api *FooAPI) Get() (int, error) {
@@ -73,7 +70,7 @@ func (self *barService) APIs() []rpc.API {
 		rpc.API{
 			Namespace: "bar",
 			Version:   "0.42",
-			Service:   newBarAPI(self.v),
+			Service:   &BarAPI{self.v},
 			Public:    true,
 		},
 	}
@@ -95,12 +92,6 @@ type BarAPI struct {
 	v *int
 }
 
-func newBarAPI(v *int) *BarAPI {
-	return &BarAPI{
-		v: v,
-	}
-}
-
 func (api *BarAPI) Set(n int) error {
 	*api.v = n
 	return nil
@@ -110,7 +101,7 @@ func main() {
 
 	var sharedvalue int
 
-	stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, 0)
+	stack, err := demo.NewServiceNode(demo.P2pPort, 0, 0)
 
 	// register two separate services
 	foosvc := func(ctx *node.ServiceContext) (node.Service, error) {
@@ -128,6 +119,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("Register barservice in servicenode failed", "err", err)
 	}
+	defer os.RemoveAll(stack.DataDir())
 
 	// start the node
 	err = stack.Start()

@@ -245,19 +245,17 @@ func main() {
 	}
 
 	// connect to the servicenode RPCs
-	datadir_one := fmt.Sprintf("%s%d", datadirPrefix, p2pPort)
-	rpcclient_one, err := rpc.Dial(filepath.Join(datadir_one, ipcpath))
+	rpcclient_one, err := rpc.Dial(filepath.Join(stack_one.DataDir(), ipcpath))
 	if err != nil {
 		demo.Log.Crit("connect to servicenode #1 IPC fail", "err", err)
 	}
-	defer os.RemoveAll(datadir_one)
+	defer os.RemoveAll(stack_one.DataDir())
 
-	datadir_two := fmt.Sprintf("%s%d", datadirPrefix, p2pPort+1)
-	rpcclient_two, err := rpc.Dial(filepath.Join(datadir_two, ipcpath))
+	rpcclient_two, err := rpc.Dial(filepath.Join(stack_two.DataDir(), ipcpath))
 	if err != nil {
 		demo.Log.Crit("connect to servicenode #2 IPC fail", "err", err)
 	}
-	defer os.RemoveAll(datadir_two)
+	defer os.RemoveAll(stack_two.DataDir())
 
 	// display that the initial pong counts are 0
 	var count int
