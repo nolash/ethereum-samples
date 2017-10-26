@@ -4,12 +4,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -17,8 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
-	"sync"
 )
 
 var (
@@ -64,7 +65,7 @@ var (
 		Version: 42,
 		Length:  1,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			log.Warn("running", "peer", p)
+			demo.Log.Warn("running", "peer", p)
 			// create the enhanced peer
 			pp := protocols.NewPeer(p, rw, &fooProtocol)
 
@@ -112,11 +113,13 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
+		// shortcut to setting up a swarm node
 		svc, err := swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 		if err != nil {
 			return nil, err
 		}
 
+		// register the protocols we will be using through pss
 		for i, s := range specs {
 			p, err := svc.RegisterPssProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
 			if err != nil {
@@ -128,14 +131,15 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 		return svc, nil
 	}
 }
+
 func main() {
 
 	// create two nodes
-	l_stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, 0)
+	l_stack, err := demo.NewServiceNode(demo.P2pPort, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
-	r_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+1, 0, 0)
+	r_stack, err := demo.NewServiceNode(demo.P2pPort+1, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
@@ -157,10 +161,12 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(l_stack.DataDir())
 	err = r_stack.Start()
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(r_stack.DataDir())
 
 	// connect the nodes
 	l_stack.Server().AddPeer(r_stack.Server().Self())

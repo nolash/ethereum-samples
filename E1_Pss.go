@@ -10,17 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 )
-
-func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
-}
 
 func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.ServiceContext) (node.Service, error) {
 	return func(ctx *node.ServiceContext) (node.Service, error) {
@@ -44,6 +40,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
+		// shortcut to setting up a swarm node
 		return swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 	}
 }
@@ -51,11 +48,11 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 func main() {
 
 	// create two nodes
-	l_stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, 0)
+	l_stack, err := demo.NewServiceNode(demo.P2pPort, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
-	r_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+1, 0, 0)
+	r_stack, err := demo.NewServiceNode(demo.P2pPort+1, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
@@ -77,10 +74,12 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(l_stack.DataDir())
 	err = r_stack.Start()
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(r_stack.DataDir())
 
 	// connect the nodes to the middle
 	l_stack.Server().AddPeer(r_stack.Server().Self())
@@ -96,7 +95,8 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("health check fail", "err", err)
 	}
-	time.Sleep(time.Second) // because the healthy does not work
+	// ... but the healthy functions doesnt seem to work, so we're stuck with timeout for now
+	time.Sleep(time.Second)
 
 	// get a valid topic byte
 	var topic pss.Topic

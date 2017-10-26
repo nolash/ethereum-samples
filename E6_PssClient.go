@@ -4,10 +4,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
@@ -15,8 +17,8 @@ import (
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
 	pssclient "github.com/ethereum/go-ethereum/swarm/pss/client"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
-	"time"
 )
 
 // simple ping and receive protocol
@@ -75,6 +77,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
+		// shortcut to setting up a swarm node
 		return swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 	}
 }
@@ -82,11 +85,11 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 func main() {
 
 	// create two nodes
-	l_stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, demo.WSDefaultPort, "pss")
+	l_stack, err := demo.NewServiceNode(demo.P2pPort, 0, demo.WSDefaultPort, "pss")
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
-	r_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+1, 0, demo.WSDefaultPort+1, "pss")
+	r_stack, err := demo.NewServiceNode(demo.P2pPort+1, 0, demo.WSDefaultPort+1, "pss")
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
@@ -97,6 +100,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode 'left' pss register fail", "err", err)
 	}
+
 	r_svc := newService(r_stack.InstanceDir(), demo.BzzDefaultPort+1, demo.BzzDefaultNetworkId)
 	err = r_stack.Register(r_svc)
 	if err != nil {
@@ -108,10 +112,12 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(l_stack.DataDir())
 	err = r_stack.Start()
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(r_stack.DataDir())
 
 	// connect the nodes to the middle
 	l_stack.Server().AddPeer(r_stack.Server().Self())
@@ -210,11 +216,11 @@ func main() {
 
 	// get ping
 	<-r_ping.InC
-	log.Warn("got ping")
+	demo.Log.Info("got ping")
 
 	// get pong
 	<-l_ping.InC
-	log.Warn("got pong")
+	demo.Log.Info("got pong")
 
 	// the 'right' will receive the ping and send on the quit channel
 	c_left.Close()

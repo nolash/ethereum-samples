@@ -10,17 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
+
 	demo "github.com/nolash/go-ethereum-p2p-demo/common"
 )
-
-func init() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
-}
 
 func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.ServiceContext) (node.Service, error) {
 	return func(ctx *node.ServiceContext) (node.Service, error) {
@@ -44,6 +40,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
+		// shortcut to setting up a swarm node
 		return swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 	}
 }
@@ -51,15 +48,15 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 func main() {
 
 	// create three nodes
-	l_stack, err := demo.NewServiceNode(demo.P2PDefaultPort, 0, 0)
+	l_stack, err := demo.NewServiceNode(demo.P2pPort, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
-	r_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+1, 0, 0)
+	r_stack, err := demo.NewServiceNode(demo.P2pPort+1, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
-	c_stack, err := demo.NewServiceNode(demo.P2PDefaultPort+2, 0, 0)
+	c_stack, err := demo.NewServiceNode(demo.P2pPort+2, 0, 0)
 	if err != nil {
 		demo.Log.Crit(err.Error())
 	}
@@ -75,7 +72,7 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode 'right' pss register fail", "err", err)
 	}
-	c_svc := newService(r_stack.InstanceDir(), demo.BzzDefaultPort+2, demo.BzzDefaultNetworkId)
+	c_svc := newService(c_stack.InstanceDir(), demo.BzzDefaultPort+2, demo.BzzDefaultNetworkId)
 	err = c_stack.Register(c_svc)
 	if err != nil {
 		demo.Log.Crit("servicenode 'right' pss register fail", "err", err)
@@ -86,14 +83,17 @@ func main() {
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(l_stack.DataDir())
 	err = r_stack.Start()
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(r_stack.DataDir())
 	err = c_stack.Start()
 	if err != nil {
 		demo.Log.Crit("servicenode start failed", "err", err)
 	}
+	defer os.RemoveAll(c_stack.DataDir())
 
 	// connect the nodes to the middle
 	c_stack.Server().AddPeer(l_stack.Server().Self())
