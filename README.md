@@ -6,11 +6,7 @@ Pss is part of Swarm POC 3, which is currently being merged into ethereum master
 
 This repository keeps a temporary merge branch providing all necessary functionality along with a pss API that will work as-is after the POC 3 merge. Please use this branch for these examples.
 
-https://github.com/nolash/go-ethereum/tree/pss-tmp-binfix
-
-If you only plan to use the `pss` library (you do not need a working `swarm` executable), please use this branch:
-
-https://github.com/ethersphere/go-ethereum/tree/pss
+https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite
 
 ## DESCRIPTION
 
