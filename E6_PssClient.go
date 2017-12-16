@@ -70,15 +70,17 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		syncEnabled := false
 		pssEnabled := true
 		cors := "*"
-		checkbookaddr := crypto.PubkeyToAddress(privkey.PublicKey)
-		bzzconfig, err := bzzapi.NewConfig(bzzdir, checkbookaddr, privkey, bzznetworkid)
+		bzzconfig := bzzapi.NewConfig()
+		bzzconfig.Path = bzzdir
+		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		return swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		return swarm.NewSwarm(ctx, ensApi, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+
 	}
 }
 
@@ -127,24 +129,24 @@ func main() {
 	r_rpcclient, err := r_stack.Attach()
 
 	// get the public keys
-	var l_pubkey []byte
+	var l_pubkey string
 	err = l_rpcclient.Call(&l_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
-	var r_pubkey []byte
+	var r_pubkey string
 	err = r_rpcclient.Call(&r_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
 
 	// get the overlay addresses
-	var l_bzzaddr []byte
+	var l_bzzaddr string
 	err = l_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get baseaddr fail", "err", err)
 	}
-	var r_bzzaddr []byte
+	var r_bzzaddr string
 	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get baseaddr fail", "err", err)
@@ -203,11 +205,8 @@ func main() {
 	defer cancel()
 	c_right.RunProtocol(ctx, r_proto)
 
-	// we need this for the send api call
-	r_pubkeyid := common.ToHex(r_pubkey)
-
 	// add the 'right' peer
-	c_left.AddPssPeer(r_pubkeyid, r_bzzaddr, pss.PingProtocol)
+	c_left.AddPssPeer(r_pubkey, common.FromHex(r_bzzaddr), pss.PingProtocol)
 
 	time.Sleep(time.Second)
 

@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
@@ -106,18 +105,16 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 		syncEnabled := false
 		pssEnabled := true
 		cors := "*"
-		checkbookaddr := crypto.PubkeyToAddress(privkey.PublicKey)
-		bzzconfig, err := bzzapi.NewConfig(bzzdir, checkbookaddr, privkey, bzznetworkid)
+		bzzconfig := bzzapi.NewConfig()
+		bzzconfig.Path = bzzdir
+		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		svc, err := swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
-		if err != nil {
-			return nil, err
-		}
+		svc, err := swarm.NewSwarm(ctx, ensApi, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 
 		// register the protocols we will be using through pss
 		for i, s := range specs {
@@ -185,35 +182,35 @@ func main() {
 	time.Sleep(time.Second) // because the healthy does not work
 
 	// get the overlay addresses
-	var l_bzzaddr []byte
+	var l_bzzaddr string
 	err = r_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
-	var r_bzzaddr []byte
+	var r_bzzaddr string
 	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
 
 	// get the publickeys
-	var l_pubkey []byte
+	var l_pubkey string
 	err = l_rpcclient.Call(&l_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
-	var r_pubkey []byte
+	var r_pubkey string
 	err = r_rpcclient.Call(&r_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
 
 	// set the peers' publickeys
-	err = l_rpcclient.Call(nil, "pss_setPeerPublicKey", r_pubkey, topic, r_bzzaddr)
+	err = l_rpcclient.Call(nil, "pss_setPeerPublicKey", r_pubkey, topic.String(), r_bzzaddr)
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
-	err = r_rpcclient.Call(nil, "pss_setPeerPublicKey", l_pubkey, topic, l_bzzaddr)
+	err = r_rpcclient.Call(nil, "pss_setPeerPublicKey", l_pubkey, topic.String(), l_bzzaddr)
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
@@ -257,13 +254,10 @@ func main() {
 		}
 	}()
 
-	// needed for sending
-	r_pubkeyid := common.ToHex(r_pubkey)
-
 	// addpeer
 	nid, _ := discover.HexID("0x00") // this hack is needed to satisfy the p2p method
 	p := p2p.NewPeer(nid, fmt.Sprintf("%x", l_bzzaddr), []p2p.Cap{})
-	pssprotos[0].AddPeer(p, proto.Run, topic, true, r_pubkeyid)
+	pssprotos[0].AddPeer(p, proto.Run, topic, true, r_pubkey)
 
 	// wait for each respective message to be delivered on both sides
 	messageW.Wait()

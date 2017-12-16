@@ -33,15 +33,17 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		syncEnabled := false
 		pssEnabled := true
 		cors := "*"
-		checkbookaddr := crypto.PubkeyToAddress(privkey.PublicKey)
-		bzzconfig, err := bzzapi.NewConfig(bzzdir, checkbookaddr, privkey, bzznetworkid)
+		bzzconfig := bzzapi.NewConfig()
+		bzzconfig.Path = bzzdir
+		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		return swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		return swarm.NewSwarm(ctx, ensApi, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+
 	}
 }
 
@@ -113,7 +115,7 @@ func main() {
 	time.Sleep(time.Second) // because the healthy does not work
 
 	// get a valid topic byte
-	var topic pss.Topic
+	var topic string
 	err = l_rpcclient.Call(&topic, "pss_stringToTopic", "foo")
 	if err != nil {
 		demo.Log.Crit("pss string to topic fail", "err", err)
@@ -125,10 +127,10 @@ func main() {
 	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic)
 
 	// supply no address for routing
-	var r_bzzaddr []byte
+	r_bzzaddr := "0x"
 
 	// get the receiver's public key
-	var r_pubkey []byte
+	var r_pubkey string
 	err = r_rpcclient.Call(&r_pubkey, "pss_getPublicKey")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
@@ -140,13 +142,9 @@ func main() {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
 
-	// convert the pubkey to hex string
-	// we need this for the send api call
-	pubkeyid := common.ToHex(r_pubkey)
-
 	// send message using asymmetric encryption
 	// since it's sent to ourselves, it will not go through pss forwarding
-	err = l_rpcclient.Call(nil, "pss_sendAsym", pubkeyid, topic, []byte("bar"))
+	err = l_rpcclient.Call(nil, "pss_sendAsym", r_pubkey, topic, common.ToHex([]byte("bar")))
 	if err != nil {
 		demo.Log.Crit("pss send fail", "err", err)
 	}

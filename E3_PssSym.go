@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
@@ -33,15 +34,17 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		syncEnabled := false
 		pssEnabled := true
 		cors := "*"
-		checkbookaddr := crypto.PubkeyToAddress(privkey.PublicKey)
-		bzzconfig, err := bzzapi.NewConfig(bzzdir, checkbookaddr, privkey, bzznetworkid)
+		bzzconfig := bzzapi.NewConfig()
+		bzzconfig.Path = bzzdir
+		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
 		}
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		return swarm.NewSwarm(ctx, ensApi, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		return swarm.NewSwarm(ctx, ensApi, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+
 	}
 }
 
@@ -98,7 +101,7 @@ func main() {
 	time.Sleep(time.Second) // because the healthy does not work
 
 	// get a valid topic byte
-	var topic pss.Topic
+	var topic string
 	err = l_rpcclient.Call(&topic, "pss_stringToTopic", "foo")
 	if err != nil {
 		demo.Log.Crit("pss string to topic fail", "err", err)
@@ -110,12 +113,12 @@ func main() {
 	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic)
 
 	// get the recipient node's swarm overlay address
-	var l_bzzaddr []byte
+	var l_bzzaddr string
 	err = r_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get baseaddr fail", "err", err)
 	}
-	var r_bzzaddr []byte
+	var r_bzzaddr string
 	err = r_rpcclient.Call(&r_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get baseaddr fail", "err", err)
@@ -143,7 +146,7 @@ func main() {
 
 	// send message using asymmetric encryption
 	// since it's sent to ourselves, it will not go through pss forwarding
-	err = l_rpcclient.Call(nil, "pss_sendSym", l_symkeyid, topic, []byte("bar"))
+	err = l_rpcclient.Call(nil, "pss_sendSym", l_symkeyid, topic, common.ToHex([]byte("bar")))
 	if err != nil {
 		demo.Log.Crit("pss send fail", "err", err)
 	}

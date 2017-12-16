@@ -87,7 +87,7 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 		}
 
 		// create the swarm overlay address
-		chbookaddr := crypto.PubkeyToAddress(prvkey.PublicKey)
+		//chbookaddr := crypto.PubkeyToAddress(prvkey.PublicKey)
 
 		// configure and create a swarm instance
 		bzzdir := stack.InstanceDir() // todo: what is the difference between this and datadir?
@@ -97,12 +97,15 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 		pssEnabled := true
 		cors := "*"
 
-		bzzconfig, err := bzzapi.NewConfig(bzzdir, chbookaddr, prvkey, BzzDefaultNetworkId)
+		bzzconfig := bzzapi.NewConfig()
+		//bzzdir, chbookaddr, prvkey, BzzDefaultNetworkId)
+		bzzconfig.Path = bzzdir
+		bzzconfig.Init(prvkey)
 		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
 		if err != nil {
 			Log.Crit("unable to configure swarm", "err", err)
 		}
-		svc, err := swarm.NewSwarm(ctx, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		svc, err := swarm.NewSwarm(ctx, nil, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
 		if err != nil {
 			return nil, err
 		}
@@ -199,12 +202,12 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 			return err
 		}
 		ids = append(ids, p2pnode.ID)
-		var bzzaddr []byte
+		var bzzaddr string
 		err = r.Call(&bzzaddr, "pss_baseAddr")
 		if err != nil {
 			return err
 		}
-		addrs = append(addrs, bzzaddr)
+		addrs = append(addrs, common.FromHex(bzzaddr))
 	}
 	peerpot := network.NewPeerPot(minbinsize, ids, addrs)
 	for {
