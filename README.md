@@ -6,7 +6,7 @@ Pss is part of Swarm POC 3, which is currently being merged into ethereum master
 
 This repository keeps a temporary merge branch providing all necessary functionality along with a pss API that will work as-is after the POC 3 merge. Please use this branch for these examples.
 
-https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite (07e47e0a)
+https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite (49ee655)
 
 ## DESCRIPTION
 

@@ -92,20 +92,15 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 		// configure and create a swarm instance
 		bzzdir := stack.InstanceDir() // todo: what is the difference between this and datadir?
 
-		swapEnabled := false
-		syncEnabled := false
-		pssEnabled := true
-		cors := "*"
-
 		bzzconfig := bzzapi.NewConfig()
-		//bzzdir, chbookaddr, prvkey, BzzDefaultNetworkId)
 		bzzconfig.Path = bzzdir
 		bzzconfig.Init(prvkey)
 		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
+		bzzconfig.PssEnabled = true
 		if err != nil {
 			Log.Crit("unable to configure swarm", "err", err)
 		}
-		svc, err := swarm.NewSwarm(ctx, nil, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		svc, err := swarm.NewSwarm(ctx, nil, bzzconfig, nil)
 		if err != nil {
 			return nil, err
 		}

@@ -29,12 +29,9 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 
 		// create necessary swarm params
 		var ensApi chequebook.Backend = nil
-		swapEnabled := false
-		syncEnabled := false
-		pssEnabled := true
-		cors := "*"
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
+		bzzconfig.PssEnabled = true
 		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
@@ -42,7 +39,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		return swarm.NewSwarm(ctx, ensApi, nil, bzzconfig, swapEnabled, syncEnabled, cors, pssEnabled)
+		return swarm.NewSwarm(ctx, ensApi, bzzconfig, nil)
 	}
 }
 
