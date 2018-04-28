@@ -1,4 +1,4 @@
-// pss send symmetrically encrypted message
+// pss send message using external encryption
 package main
 
 import (
@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
@@ -32,6 +32,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		var ensApi chequebook.Backend = nil
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
+		bzzconfig.Pss.AllowRaw = true
 		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
@@ -96,12 +97,8 @@ func main() {
 	}
 	time.Sleep(time.Second) // because the healthy does not work
 
-	// get a valid topic byte
-	var topic string
-	err = l_rpcclient.Call(&topic, "pss_stringToTopic", "foo")
-	if err != nil {
-		demo.Log.Crit("pss string to topic fail", "err", err)
-	}
+	// set the topic byte to unecrypted magic value
+	topic := "0x00000000"
 
 	// subscribe to incoming messages on the receiving sevicenode
 	// this will register a message handler on the specified topic
@@ -120,36 +117,30 @@ func main() {
 		demo.Log.Crit("pss get baseaddr fail", "err", err)
 	}
 
-	symkey := make([]byte, 32)
-	c, err := rand.Read(symkey)
+	// generate the encryption key to use and encrypt the message with it
+	r_externalkey, err := ecies.GenerateKey(rand.Reader, crypto.S256(), nil)
 	if err != nil {
-		demo.Log.Crit("symkey gen fail", "err", err)
-	} else if c < 32 {
-		demo.Log.Crit("symkey size mismatch, expected 32", "size", c)
+		demo.Log.Crit("generate external encryption key fail", "err", err)
 	}
-
-	var l_symkeyid string
-	err = l_rpcclient.Call(&l_symkeyid, "pss_setSymmetricKey", symkey, topic, r_bzzaddr, true)
+	m := []byte("xyzzy")
+	ciphertext, err := ecies.Encrypt(rand.Reader, &r_externalkey.PublicKey, m, nil, nil)
 	if err != nil {
-		demo.Log.Crit("pss set symkey fail", "err", err)
-	}
-
-	var r_symkeyid string
-	err = r_rpcclient.Call(&r_symkeyid, "pss_setSymmetricKey", symkey, topic, l_bzzaddr, true)
-	if err != nil {
-		demo.Log.Crit("pss set symkey fail", "err", err)
+		demo.Log.Crit("external message encryption fail", "err", err)
 	}
 
 	// send message using symmetric encryption
 	// since it's sent to ourselves, it will not go through pss forwarding
-	err = l_rpcclient.Call(nil, "pss_sendSym", l_symkeyid, topic, common.ToHex([]byte("bar")))
+	err = l_rpcclient.Call(nil, "pss_sendRaw", ciphertext, r_bzzaddr)
 	if err != nil {
 		demo.Log.Crit("pss send fail", "err", err)
 	}
 
 	// get the incoming message
 	inmsg := <-msgC
-	demo.Log.Info("pss received", "msg", string(inmsg.Msg), "from", fmt.Sprintf("%x", inmsg.Key))
+
+	// decrypt the message
+	plaintext, err := r_externalkey.Decrypt(inmsg.Msg, nil, nil)
+	demo.Log.Info("pss received", "msg", string(plaintext), "from", fmt.Sprintf("%x", inmsg.Key))
 
 	// bring down the servicenodes
 	sub.Unsubscribe()

@@ -108,14 +108,18 @@ Pss enables encrypted messaging between nodes that aren't directly connected thr
 
   Create an arbitrary symmetric encryption key, and send message with it.
 
-* E4_PssHandshake.go
+* E4_PssRaw.go
+
+  Send a message using external encryption
+
+* E5_PssHandshake.go
 
   Using the builtin convenience method for Diffie-Hellmann key exchange.
 
-* E5_PssProtocol.go
+* E6_PssProtocol.go
 
   Implementing devp2p style protocols over pss.
 
-* E6_PssClient.go
+* E7_PssClient.go
 
   Mounting devp2p style protocols on an RPC connection.
