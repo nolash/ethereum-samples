@@ -96,7 +96,6 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 		bzzconfig.Path = bzzdir
 		bzzconfig.Init(prvkey)
 		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
-		bzzconfig.PssEnabled = true
 		if err != nil {
 			Log.Crit("unable to configure swarm", "err", err)
 		}
@@ -204,7 +203,7 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 		}
 		addrs = append(addrs, common.FromHex(bzzaddr))
 	}
-	peerpot := network.NewPeerPot(minbinsize, ids, addrs)
+	peerpot := network.NewPeerPotMap(minbinsize, addrs)
 	for {
 		healthycount := 0
 		for i, r := range rpcs {

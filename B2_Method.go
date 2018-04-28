@@ -2,6 +2,7 @@
 package main
 
 import (
+	"net"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -44,7 +45,7 @@ func main() {
 
 	// create IPC endpoint
 	ipcpath := "demo.ipc"
-	ipclistener, err := rpc.CreateIPCListener(ipcpath)
+	ipclistener, err := net.Listen("unix", ipcpath)
 	if err != nil {
 		demo.Log.Crit("IPC endpoint create fail", "err", err)
 	}

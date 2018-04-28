@@ -4,6 +4,7 @@ package main
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"net"
 	"os"
 	"sync"
 
@@ -107,7 +108,7 @@ func newRPCServer() (*rpc.Server, error) {
 	}
 
 	// create IPC endpoint
-	ipclistener, err := rpc.CreateIPCListener(ipcpath)
+	ipclistener, err := net.Listen("unix", ipcpath)
 	if err != nil {
 		return nil, fmt.Errorf("IPC endpoint create fail: %v", err)
 	}

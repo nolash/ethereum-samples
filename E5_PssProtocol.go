@@ -103,7 +103,6 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 		var ensApi chequebook.Backend = nil
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
-		bzzconfig.PssEnabled = true
 		bzzconfig.Init(privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
