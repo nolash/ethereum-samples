@@ -2,15 +2,13 @@
 
 ## USING THESE EXAMPLES
 
-Pss is part of Swarm POC 3, which is currently being merged into ethereum master. Before this merge is completed, the code examples cannot be run with the current official go-ethereum implementation. They will also not work with any of the active swarm development branches, because it relies on total functionality provided only in part by each of them.
+This code uses the go-ethereum library in the state of commit 9cf245f3b9bd159b504e21f050fdb4db142178b3 on https://github.com/ethersphere/go-ethereum. _This commit is not yet part of the ethereum master branch._ For development using all the features of this example suite, please use this branch instead:
 
-This repository keeps a temporary merge branch providing all necessary functionality along with a pss API that will work as-is after the POC 3 merge. Please use this branch for these examples.
-
-https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite (49ee655)
+https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite
 
 ## DESCRIPTION
 
-These code examples are intended to demonstrate the main building blocks of peer-to-peer comunications in go-ethereum. They are organized in chapters, where every example in a chapter (ideally) builds on the next.
+These code examples are intended to demonstrate the main building blocks of peer-to-peer comunications in go-ethereum. They are organized in chapters, where every example in a chapter builds on the next.
 
 They form the basis for a future tutorial with a detailed simple-to-follow narrative.
 
