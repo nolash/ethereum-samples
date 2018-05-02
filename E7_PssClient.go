@@ -168,11 +168,13 @@ func main() {
 	time.Sleep(time.Second) // because the healthy does not work
 
 	// configure and start up pss client RPCs
+	// we can use websockets ...
 	c_left, err := pssclient.NewClient(fmt.Sprintf("ws://localhost:%d", demo.WSDefaultPort))
 	if err != nil {
 		demo.Log.Crit("pssclient 'left' create fail", "err", err)
 	}
-	c_right, err := pssclient.NewClient(fmt.Sprintf("ws://localhost:%d", demo.WSDefaultPort+1))
+	// ... or unix sockets, the client handles both :)
+	c_right, err := pssclient.NewClient(r_stack.IPCEndpoint())
 	if err != nil {
 		demo.Log.Crit("pssclient 'right' create fail", "err", err)
 	}
