@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Swarm Mutable Resources - feed demo</title>
+		<script type="text/javascript" src="common.js"></script>
+	<script>
+		// namehash 0xfed6fe4ee69a45181535f11f22f2592b6d21a9de0dfd77dda358612d0cb34067
+		//var ensName = "mutable.test";
+	
+		function getEns() {
+			return document.getElementById("ens").value;
+		}
+
+		function getUpdate() {
+			console.log("updating");
+			var r = new XMLHttpRequest();
+			r.open("GET", "http://localhost:8500/bzz-resource:/" + getEns());
+			r.responseType = "text";
+			r.addEventListener("load", function(e) {
+				if (r.status == 200) {
+					var p = new DOMParser();
+					var d = p.parseFromString(r.response, "text/html");
+					var l = d.getElementsByTagName("li");
+					for (i = 0; l.length > 0; i++) {
+						document.getElementById("feed_list").appendChild(l[0]);
+					}
+				} else {
+					document.getElementById("feed_list").innerHTML = "no data found";
+				}
+			});
+			r.send();
+		}
+
+		function sendUpdate(dweet, releaseFunc) {
+			var r = new XMLHttpRequest();
+			r.open("POST", "http://localhost:8500/bzz-resource:/" + getEns() + "/raw")
+			r.responseType = "text";
+			r.addEventListener("load", function(e) {
+				if (r.status == 200) {
+					var f = document.getElementById("feed_list");
+					f.prepend(dweet);
+					setError("ok", 0);
+				}
+				releaseFunc();
+			});
+			r.timeout = 1000;
+			r.addEventListener("error", function(e ,v) {
+				setError("fail", 1);
+				releaseFunc();
+			});
+			var list = document.getElementById("feed_list").cloneNode(true);
+			list.prepend(dweet);
+			r.send(list.innerHTML);
+		}
+
+		function handleSubmit(e) {
+			e.target.innerText = "sending...";
+			e.target.disabled = true;
+			var dweet = document.createElement("li");
+			dweet.innerText = document.getElementById("dweet_text").value;
+			var releaseFunc = function() {
+				e.target.disabled = false;
+				e.target.innerText = "send";
+			};
+			sendUpdate(dweet, releaseFunc);
+		}
+
+		window.onload = function(e) {
+			document.getElementById("dweet_submit").addEventListener("click", handleSubmit);
+			document.getElementById("ens_submit").addEventListener("click", getUpdate);
+			document.getElementById("ens").value = "mutable.test";
+			getUpdate();
+		}
+	</script>
+	</head>
+	<body>
+		<div id="head">
+			<h1>Feed demo</h1>
+			<p>This demonstrates embedding of dynamic content</p>
+			<div id="error"></div>
+			<form id="dweet" onSubmit="return false;">
+				<input type="text" id="ens" name="ens" /> <button id="ens_submit">set ens</button><br/>
+				<input type="text" id="dweet_text" name="dweet_text" /> <button id="dweet_submit" type="button">send update</button>
+				</form>
+			</hr>
+		</div>
+		<div id="feed">
+			<ul id="feed_list">
+			</ul>
+		</div>
+	</body>
+</html>

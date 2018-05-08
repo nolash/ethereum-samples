@@ -1,0 +1,130 @@
+<!DOCTYPE>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>Swarm Mutable Resources - page demo</title>
+		<script type="text/javascript" src="common.js"></script>
+	<script>
+		// namehash 0xfed6fe4ee69a45181535f11f22f2592b6d21a9de0dfd77dda358612d0cb34067
+		var ensNamePost = "test13.mutable.test";
+		var ensNameGet = ensNamePost
+		//var ensNameGet = "df82f78a40d3d2660d0994c7c918ee86fb22b8d10a0dc0e76b23a4da908f0431" // freq 13
+		//var ensNameGet = "29e9fbeb9c0333e351337b724179518c5ee3ba8bf9c3373341f68681cf0c44a1" // freq 13, path has name, hash is hash
+		//var ensNameGet = "a3cf9f5ee46f3b0aa7c1e8ff2888824422023fa86b02045a5040896a1cbfd654" 
+		//var ensNameGet = "94f373bb8df041687d5cc9a6cbf72ccd8886e816c7b25aa1e7776a21c55a540c";
+		//var ensNameGet = "6d2177aa2a067e447b977668e91b632be811be95b735d24c4781ed2a18bef9b5"
+
+		function getEns() {
+			return document.getElementById("ens").value;
+		}
+
+		function getUpdate() {
+			console.log("updating");
+			console.log(document.getElementById("frame_body"));
+			var r = new XMLHttpRequest();
+			src = "http://localhost:8500/bzz:/" + getEns() + "/";
+			r.open("GET", src);
+			r.responseType = "text";
+			r.addEventListener("load", function(e) {
+				var mime = r.getResponseHeader("Content-Type");
+				if (r.status == 200) {
+					if (mime.substring(0,9) != "text/html") { 
+						src = "data:text/html,<html><head></head><body>[cowardly refusing to display content type \"" + mime + "\"]";
+					}
+				}
+				document.getElementById("frame_body").src = src;
+			});
+			r.timeout = 2000
+			r.send();
+		}
+
+		function toSwarmMultihash(hashhex) {
+			if (hashhex.length == 66) {
+				if (hashhex.substring(0,2) != "0x") {
+					setError("invalid hash prefix", 1);
+					return "";
+				}
+				hashhex = hashhex.substring(2);
+			} else if (hashhex.length != 64) {
+				setError("invalid hash length", 1);
+				return "";
+			}
+			for (i = 0; i < hashhex.length; i++) {
+				if (
+					(hashhex.charCodeAt(i) < 0x30 || hashhex.charCodeAt(i) > 0x39) &&
+					(hashhex.charCodeAt(i) < 0x61 || hashhex.charCodeAt(i) > 0x66) 
+				) {
+					setError("invalid char " + hashhex[i] + " in hex string (pos " + i + ")", 1);
+					return "";
+				}
+			}
+			// 1b = keccak_256
+			// 08 = 32 (bytes) hash length
+			return "0x1b20" + hashhex;
+		}
+
+		function sendUpdate(hash, releaseFunc) {
+			multihash = toSwarmMultihash(hash)
+			if (multihash.length == 0) {
+				releaseFunc();
+				return false;	
+			}
+			console.log(multihash);
+			var r = new XMLHttpRequest();
+			var url = "http://localhost:8500/bzz-resource:/" + getEns() + "/"
+			console.log(url);
+			r.open("POST", url)
+			r.responseType = "text";
+			r.addEventListener("load", function(e) {
+				if (r.status == 200) {
+					getUpdate();
+					setError("ok", 0);
+				} else {
+					setError("update failed (" + r.status + ") " + r.response)
+				}
+				releaseFunc();
+			});
+			r.timeout = 2000
+			r.addEventListener("error", function(e ,v) {
+				setError("fail: " + e + " v " +v, 2);
+				releaseFunc();
+			});
+			r.addEventListener("progress", function(e) {
+				console.log("progress", e)
+			});
+			r.send(multihash);
+		}
+		function handleSubmit(e) {
+			e.target.innerText = "sending...";
+			e.target.disabled = true;
+			var releaseFunc = function() {
+				e.target.disabled = false;
+				e.target.innerText = "send";
+			};
+			sendUpdate(document.getElementById("hash_edit").value, releaseFunc);
+		}
+
+		window.onload = function(e) {
+			document.getElementById("hash_submit").addEventListener("click", handleSubmit);
+			document.getElementById("ens_submit").addEventListener("click", getUpdate);
+			document.getElementById("ens").value = "mutable.test";
+			getUpdate();
+		}
+	</script>
+	</head>
+	<body>
+		<div id="head">
+			<h1>Page demo</h1>
+			<p>This demonstrates embedding of dynamic content</p>
+			<div id="error"></div>
+			<form id="hash" onSubmit="return false;">
+				<input type="text" id="ens" name="ens" /> <button id="ens_submit">set ens</button><br/>
+				<input type="text" id="hash_edit" name="hash_edit" size="70" maxlength="66" /> <button id="hash_submit" type="button">send</button>
+			</form>
+			</hr>
+		</div>
+				</body>
+		</html>
+		<iframe id="frame_body" width="100%" height="100%" src="/_loading.html">
+		</iframe>
+	</body>
+</html>
