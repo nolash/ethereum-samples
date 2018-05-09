@@ -153,14 +153,17 @@ func (self *Demo) Stop() error {
 // The protocol code provides Hook to run when protocol starts on a peer
 func (self *Demo) Run(p *protocols.Peer) error {
 	self.mu.RLock()
-	defer self.mu.RUnlock()
 	log.Info("run protocol hook", "peer", p, "difficulty", self.maxDifficulty)
+	self.mu.RUnlock()
 
-	go func(self *Demo) {
+	go func(self *Demo, p *protocols.Peer) {
+		self.mu.RLock()
+		maxdifficulty := self.maxDifficulty
+		self.mu.RUnlock()
 		p.Send(&protocol.Skills{
-			Difficulty: self.maxDifficulty,
+			Difficulty: maxdifficulty,
 		})
-		if self.maxDifficulty > 0 {
+		if maxdifficulty > 0 {
 			return
 		}
 		data := make([]byte, self.submitDataSize)
@@ -176,7 +179,9 @@ func (self *Demo) Run(p *protocols.Peer) error {
 			if err != nil {
 				return
 			}
+			self.mu.RLock()
 			difficulty := rand.Intn(int(self.maxSubmitDifficulty-self.minSubmitDifficulty)) + int(self.minSubmitDifficulty)
+			self.mu.RUnlock()
 			prid, err := self.submitRequest(data, uint8(difficulty))
 			if err != nil {
 				return
@@ -184,7 +189,7 @@ func (self *Demo) Run(p *protocols.Peer) error {
 			log.Debug("submitted job", "nid", fmt.Sprintf("%x", self.id[:8]), "prid", fmt.Sprintf("%x", prid))
 		}
 
-	}(self)
+	}(self, p)
 	return nil
 }
 
@@ -289,6 +294,8 @@ func (self *Demo) requestHandlerLocked(msg *protocol.Request, p *protocols.Peer)
 	go func(msg *protocol.Request) {
 		ctx, cancel := context.WithTimeout(self.ctx, self.maxTimePerJob)
 		defer cancel()
+
+		log.Debug("took job", "id", fmt.Sprintf("%x", msg.Id), "peer", p.ID().TerminalString)
 		j, err := doJob(ctx, msg.Data, msg.Difficulty)
 
 		if err != nil {
@@ -313,7 +320,7 @@ func (self *Demo) requestHandlerLocked(msg *protocol.Request, p *protocols.Peer)
 
 		go p.Send(res)
 
-		log.Debug("finished job", "id", msg.Id, "nonce", j.Nonce, "hash", j.Hash)
+		log.Debug("finished job", "id", fmt.Sprintf("%x", msg.Id), "nonce", j.Nonce, "hash", j.Hash)
 	}(msg)
 
 	return nil
@@ -328,11 +335,11 @@ func (self *Demo) resultHandlerLocked(msg *protocol.Result, p *protocols.Peer) e
 	log.Trace("got result type", "msg", msg, "peer", p)
 
 	if !self.submits.Have(msg.Id) {
-		log.Debug("stale or fake request id")
+		log.Debug("stale or fake request id", "id", fmt.Sprintf("%x", msg.Id))
 		return nil // in case it's stale not fake don't punish the peer
 	}
 	if !checkJob(msg.Hash, self.submits.GetData(msg.Id), msg.Nonce) {
-		return fmt.Errorf("Got incorrect result", "p", p)
+		return fmt.Errorf("Got incorrect result job %x from %s", msg.Id, p.ID())
 	}
 	go p.Send(&protocol.Status{
 		Id:   msg.Id,

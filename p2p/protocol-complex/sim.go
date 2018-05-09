@@ -48,7 +48,7 @@ func init() {
 	flag.Parse()
 	if *loglevel {
 		log.PrintOrigins(true)
-		log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(colorable.NewColorableStderr(), log.TerminalFormat(true))))
+		log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(colorable.NewColorableStderr(), log.TerminalFormat(true))))
 	}
 
 	maxDifficulty = defaultMaxDifficulty
@@ -139,7 +139,7 @@ func main() {
 					}
 					log.Debug("stop sending", "node", nid)
 					trigger <- nid
-					continue
+					return
 				}
 			}(nid)
 		}
