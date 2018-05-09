@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,7 +26,10 @@ import (
 const (
 	defaultMaxDifficulty   = 24
 	defaultMinDifficulty   = 8
+	defaultSubmitDelay     = time.Millisecond * 100
+	defaultDataSize        = 32
 	defaultMaxTime         = time.Second * 10
+	defaultSimDuration     = time.Second * 5
 	defaultMaxJobs         = 100
 	defaultResourceApiHost = "http://localhost:8500"
 )
@@ -46,7 +48,7 @@ func init() {
 	flag.Parse()
 	if *loglevel {
 		log.PrintOrigins(true)
-		log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(colorable.NewColorableStderr(), log.TerminalFormat(true))))
+		log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(colorable.NewColorableStderr(), log.TerminalFormat(true))))
 	}
 
 	maxDifficulty = defaultMaxDifficulty
@@ -124,10 +126,7 @@ func main() {
 			}
 
 			go func(nid discover.NodeID) {
-				sendlimit := 20
-				tick := time.NewTicker(time.Millisecond * 100)
-				defer tick.Stop()
-				c := 0
+				timer := time.NewTimer(defaultSimDuration)
 				for {
 					select {
 					case <-events:
@@ -136,26 +135,11 @@ func main() {
 						return
 					case <-ctx.Done():
 						return
-					case <-tick.C:
+					case <-timer.C:
 					}
-					if sendlimit < c {
-						log.Debug("stop sending", "node", nid)
-						trigger <- nid
-						tick.Stop()
-						continue
-					}
-					c++
-					data := make([]byte, 16)
-					rand.Read(data)
-					difficulty := rand.Intn(int(maxDifficulty-minDifficulty)) + int(minDifficulty)
-
-					var id protocol.ID
-					err := client.Call(&id, "demo_submit", data, difficulty)
-					if err != nil {
-						log.Warn("job not accepted", "err", err)
-					} else {
-						log.Info("job submitted", "id", id)
-					}
+					log.Debug("stop sending", "node", nid)
+					trigger <- nid
+					continue
 				}
 			}(nid)
 		}
@@ -201,6 +185,7 @@ func main() {
 }
 
 func newServices() adapters.Services {
+	haveWorker := false
 	return adapters.Services{
 		"demo": func(node *adapters.ServiceContext) (node.Service, error) {
 			var resourceEnsName string
@@ -217,7 +202,14 @@ func newServices() adapters.Services {
 			params := service.NewDemoParams(sinkFunc, saveFunc)
 			params.MaxJobs = maxJobs
 			params.MaxTimePerJob = maxTime
-			params.MaxDifficulty = maxDifficulty
+			if !haveWorker {
+				params.MaxDifficulty = maxDifficulty
+				haveWorker = true
+			}
+			params.SubmitDelay = defaultSubmitDelay
+			params.SubmitDataSize = defaultDataSize
+			params.MaxSubmitDifficulty = defaultMaxDifficulty
+			params.MinSubmitDifficulty = defaultMinDifficulty
 
 			params.Id = node.Config.ID[:]
 			return service.NewDemo(params)

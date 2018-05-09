@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,7 +33,10 @@ import (
 const (
 	defaultMaxDifficulty   = 24
 	defaultMinDifficulty   = 8
+	defaultSubmitDelay     = time.Millisecond * 100
+	defaultDataSize        = 32
 	defaultMaxTime         = time.Second * 15
+	defaultSimDuration     = time.Second * 1
 	defaultMaxJobs         = 100
 	defaultResourceApiHost = "http://localhost:8500"
 )
@@ -148,41 +150,20 @@ func main() {
 			}
 
 			go func(nid discover.NodeID) {
-				sendlimit := 20
-				tick := time.NewTicker(time.Millisecond * 100)
-				defer tick.Stop()
-				c := 0
+				timer := time.NewTimer(defaultSimDuration)
 				for {
 					select {
 					case <-events:
 						continue
-
 					case <-quitC:
-						//trigger <- nid
 						return
 					case <-ctx.Done():
-						//trigger <- nid
 						return
-					case <-tick.C:
+					case <-timer.C:
 					}
-					if sendlimit < c {
-						log.Debug("stop sending", "node", nid)
-						trigger <- nid
-						tick.Stop()
-						continue
-					}
-					c++
-					data := make([]byte, 16)
-					rand.Read(data)
-					difficulty := rand.Intn(int(maxDifficulty-minDifficulty)) + int(minDifficulty)
-
-					var id protocol.ID
-					err := client.Call(&id, "demo_submit", data, difficulty)
-					if err != nil {
-						log.Warn("job not accepted", "err", err)
-					} else {
-						log.Debug("job submitted", "id", id, "nid", nid)
-					}
+					log.Debug("stop sending", "node", nid)
+					trigger <- nid
+					continue
 				}
 			}(nid)
 		}
@@ -193,7 +174,7 @@ func main() {
 		case <-ctx.Done():
 		default:
 		}
-		log.Warn("ok", "nid", nid)
+		log.Warn("sim loop terminated", "nid", nid)
 		return true, nil
 	}
 
@@ -268,6 +249,7 @@ func connectPssPeers(n *simulations.Network, nids []discover.NodeID) error {
 }
 
 func newServices() adapters.Services {
+	haveWorker := false
 	return adapters.Services{
 		"bzz": func(node *adapters.ServiceContext) (node.Service, error) {
 			var resourceEnsName string
@@ -284,7 +266,16 @@ func newServices() adapters.Services {
 			params := service.NewDemoParams(sinkFunc, saveFunc)
 			params.MaxJobs = maxJobs
 			params.MaxTimePerJob = maxTime
-			params.MaxDifficulty = maxDifficulty
+			if !haveWorker {
+				params.MaxDifficulty = maxDifficulty
+				haveWorker = true
+			}
+			params.SubmitDelay = defaultSubmitDelay
+			params.SubmitDataSize = defaultDataSize
+			params.MaxSubmitDifficulty = defaultMaxDifficulty
+			params.MinSubmitDifficulty = defaultMinDifficulty
+
+			//params.MaxDifficulty = maxDifficulty
 			params.Id = node.Config.ID[:]
 
 			// create the pss service that wraps the demo protocol

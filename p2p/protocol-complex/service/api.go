@@ -15,7 +15,12 @@ func newDemoAPI(s *Demo) *DemoAPI {
 }
 
 func (self *DemoAPI) Submit(data []byte, difficulty uint8) (protocol.ID, error) {
-	return self.service.SubmitRequest(data, difficulty)
+	return self.service.submitRequest(data, difficulty)
+}
+
+func (self *DemoAPI) Stop() error {
+	//self.service.running = false
+	return nil
 }
 
 func (self *DemoAPI) SetDifficulty(d uint8) error {

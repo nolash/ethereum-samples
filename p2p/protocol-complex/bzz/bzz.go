@@ -97,7 +97,7 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 	delivery := stream.NewDelivery(to, db)
 
 	self.streamer = stream.NewRegistry(addr, delivery, db, stateStore, &stream.RegistryOptions{
-		DoSync:     false,
+		DoSync:     true,
 		DoRetrieve: true,
 	})
 

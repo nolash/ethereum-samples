@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -21,7 +22,8 @@ import (
 type Demo struct {
 
 	// a unique identifier used to track a request across messages
-	id []byte
+	id      []byte
+	running bool
 
 	// worker mode params
 	maxJobs       int           // maximum number of simultaneous hashing jobs the node will accept
@@ -30,7 +32,11 @@ type Demo struct {
 	maxTimePerJob time.Duration // maximum time one hashing job will run
 
 	// moocher mode params
-	workers map[*protocols.Peer]uint8 // an address book of hasher peers for nodes that send requests
+	workers             map[*protocols.Peer]uint8 // an address book of hasher peers for nodes that send requests
+	submitDelay         time.Duration
+	submitDataSize      int
+	minSubmitDifficulty uint8
+	maxSubmitDifficulty uint8
 
 	submits *submitStore
 	results *resultStore
@@ -46,12 +52,16 @@ type Demo struct {
 type SaveFunc func(nid []byte, mid protocol.ID, difficulty uint8, data []byte, nonce []byte, hash []byte)
 
 type DemoParams struct {
-	Id            []byte
-	MaxDifficulty uint8
-	MaxJobs       int
-	MaxTimePerJob time.Duration
-	ResultSink    ResultSinkFunc
-	Save          SaveFunc
+	Id                  []byte
+	MaxDifficulty       uint8
+	MaxJobs             int
+	MaxTimePerJob       time.Duration
+	SubmitDelay         time.Duration
+	SubmitDataSize      int
+	MaxSubmitDifficulty uint8
+	MinSubmitDifficulty uint8
+	ResultSink          ResultSinkFunc
+	Save                SaveFunc
 }
 
 func NewDemoParams(sinkFunc ResultSinkFunc, saveFunc SaveFunc) *DemoParams {
@@ -64,16 +74,21 @@ func NewDemoParams(sinkFunc ResultSinkFunc, saveFunc SaveFunc) *DemoParams {
 func NewDemo(params *DemoParams) (*Demo, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	d := &Demo{
-		id:            params.Id,
-		maxJobs:       params.MaxJobs,
-		maxDifficulty: params.MaxDifficulty,
-		maxTimePerJob: params.MaxTimePerJob,
-		workers:       make(map[*protocols.Peer]uint8),
-		submits:       newSubmitStore(),
-		results:       newResultStore(ctx, params.ResultSink),
-		save:          params.Save,
-		ctx:           ctx,
-		cancel:        cancel,
+		id:                  params.Id,
+		running:             true,
+		maxJobs:             params.MaxJobs,
+		maxDifficulty:       params.MaxDifficulty,
+		maxTimePerJob:       params.MaxTimePerJob,
+		submitDelay:         params.SubmitDelay,
+		submitDataSize:      params.SubmitDataSize,
+		maxSubmitDifficulty: params.MaxSubmitDifficulty,
+		minSubmitDifficulty: params.MinSubmitDifficulty,
+		workers:             make(map[*protocols.Peer]uint8),
+		submits:             newSubmitStore(),
+		results:             newResultStore(ctx, params.ResultSink),
+		save:                params.Save,
+		ctx:                 ctx,
+		cancel:              cancel,
 	}
 	if err := d.initProtocol(); err != nil {
 		return nil, err
@@ -130,6 +145,7 @@ func (self *Demo) Start(srv *p2p.Server) error {
 }
 
 func (self *Demo) Stop() error {
+	log.Error(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RUNNING STOP")
 	self.cancel()
 	return nil
 }
@@ -139,9 +155,36 @@ func (self *Demo) Run(p *protocols.Peer) error {
 	self.mu.RLock()
 	defer self.mu.RUnlock()
 	log.Info("run protocol hook", "peer", p, "difficulty", self.maxDifficulty)
-	go p.Send(&protocol.Skills{
-		Difficulty: self.maxDifficulty,
-	})
+
+	go func(self *Demo) {
+		p.Send(&protocol.Skills{
+			Difficulty: self.maxDifficulty,
+		})
+		if self.maxDifficulty > 0 {
+			return
+		}
+		data := make([]byte, self.submitDataSize)
+		tick := time.NewTicker(self.submitDelay)
+		for {
+			select {
+			case <-self.ctx.Done():
+				tick.Stop()
+				return
+			case <-tick.C:
+			}
+			_, err := rand.Read(data)
+			if err != nil {
+				return
+			}
+			difficulty := rand.Intn(int(self.maxSubmitDifficulty-self.minSubmitDifficulty)) + int(self.minSubmitDifficulty)
+			prid, err := self.submitRequest(data, uint8(difficulty))
+			if err != nil {
+				return
+			}
+			log.Debug("submitted job", "nid", fmt.Sprintf("%x", self.id[:8]), "prid", fmt.Sprintf("%x", prid))
+		}
+
+	}(self)
 	return nil
 }
 
@@ -154,7 +197,7 @@ func (self *Demo) getNextWorker(difficulty uint8) *protocols.Peer {
 	return nil
 }
 
-func (self *Demo) SubmitRequest(data []byte, difficulty uint8) (protocol.ID, error) {
+func (self *Demo) submitRequest(data []byte, difficulty uint8) (protocol.ID, error) {
 	self.mu.Lock()
 	p := self.getNextWorker(difficulty)
 	if p == nil {
@@ -162,19 +205,20 @@ func (self *Demo) SubmitRequest(data []byte, difficulty uint8) (protocol.ID, err
 	}
 	id := newID(data, self.submits.IncSerial())
 	self.mu.Unlock()
-	go func(id protocol.ID) {
-		req := &protocol.Request{
-			Id:         id,
-			Data:       data,
-			Difficulty: difficulty,
+	//go func(id protocol.ID) {
+	req := &protocol.Request{
+		Id:         id,
+		Data:       data,
+		Difficulty: difficulty,
+	}
+	err := p.Send(req)
+	if err == nil {
+		if err := self.submits.Put(req, id); err != nil {
+			log.Error("submits put fail", "err", err)
 		}
-		if err := p.Send(req); err == nil {
-			if err := self.submits.Put(req, id); err != nil {
-				log.Error("submits put fail", "err", err)
-			}
-		}
-	}(id)
-	return id, nil
+	}
+	//}(id)
+	return id, err
 }
 
 func (self *Demo) skillsHandlerLocked(msg *protocol.Skills, p *protocols.Peer) error {
