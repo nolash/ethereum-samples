@@ -220,3 +220,12 @@ func (self *BzzServiceAPI) AddPeer(topic pss.Topic, pubKey hexutil.Bytes, addr p
 	psssvc.protocol.AddPeer(p2pp, topic, true, common.ToHex(pubKey))
 	return nil
 }
+
+func (self *BzzServiceAPI) RemovePeer(topic pss.Topic, pubKey hexutil.Bytes) error {
+	psssvc, ok := self.service.pssService[topic]
+	if !ok {
+		return fmt.Errorf("pss protocol not registered")
+	}
+	psssvc.protocol.RemovePeer(true, common.ToHex(pubKey))
+	return nil
+}

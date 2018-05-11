@@ -56,7 +56,7 @@ func init() {
 	flag.Parse()
 	if *loglevel {
 		log.PrintOrigins(true)
-		log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(colorable.NewColorableStderr(), log.TerminalFormat(true))))
+		log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(colorable.NewColorableStderr(), log.TerminalFormat(true))))
 	}
 
 	maxDifficulty = defaultMaxDifficulty
@@ -192,13 +192,31 @@ func main() {
 	if step.Error != nil {
 		log.Error(step.Error.Error())
 	}
+	var pivotPubKeyHex string
 	for i, nid := range nids {
 		if i == 0 {
+			pubkey := privateKeys[nid].PublicKey
+			pubkeybytes := crypto.FromECDSAPub(&pubkey)
+			pivotPubKeyHex = common.ToHex(pubkeybytes)
 			continue
 		}
 		log.Debug("stopping node", "nid", nid)
-		n.Stop(nid)
-
+		client, err := n.GetNode(nid).Client()
+		if err != nil {
+			log.Error("can't get node rpc client", "nid", nid.TerminalString(), "err", err)
+			return
+		}
+		topic := pss.BytesToTopic([]byte(fmt.Sprintf("%s:%d", protocol.Spec.Name, protocol.Spec.Version)))
+		err = client.Call(nil, "pss_removePeer", topic, pivotPubKeyHex)
+		if err != nil {
+			log.Error("can't remove pss protocol peer", "nid", nid.TerminalString(), "err", err)
+			return
+		}
+	}
+	for i, nid := range nids {
+		if i > 0 {
+			n.Stop(nid)
+		}
 	}
 	sigC := make(chan os.Signal)
 	signal.Notify(sigC, syscall.SIGINT)
