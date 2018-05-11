@@ -65,11 +65,17 @@
 			sendUpdate(dweet, releaseFunc);
 		}
 
+		function handleEns(e) {
+			document.getElementById("feed_list").innerHTML = "";
+			setError("", 0);
+			getUpdate()
+		}
+
 		window.onload = function(e) {
 			document.getElementById("dweet_submit").addEventListener("click", handleSubmit);
-			document.getElementById("ens_submit").addEventListener("click", getUpdate);
+			document.getElementById("ens_submit").addEventListener("click", handleEns);
 			document.getElementById("ens").value = "mutable.test";
-			getUpdate();
+			//getUpdate();
 		}
 	</script>
 	</head>
@@ -79,7 +85,7 @@
 			<p>This demonstrates embedding of dynamic content</p>
 			<div id="error"></div>
 			<form id="dweet" onSubmit="return false;">
-				<input type="text" id="ens" name="ens" /> <button id="ens_submit">set ens</button><br/>
+				<input type="text" id="ens" name="ens" /> <button id="ens_submit">refresh</button><br/>
 				<input type="text" id="dweet_text" name="dweet_text" /> <button id="dweet_submit" type="button">send update</button>
 				</form>
 			</hr>

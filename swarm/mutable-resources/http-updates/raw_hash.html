@@ -103,11 +103,17 @@
 			sendUpdate(document.getElementById("hash_edit").value, releaseFunc);
 		}
 
+		function handleEns(e) {
+			document.getElementById("frame_body").src = "_loading.html"
+			setError("", 0);
+			getUpdate()
+		}
+
 		window.onload = function(e) {
 			document.getElementById("hash_submit").addEventListener("click", handleSubmit);
 			document.getElementById("ens_submit").addEventListener("click", getUpdate);
 			document.getElementById("ens").value = "mutable.test";
-			getUpdate();
+			//getUpdate();
 		}
 	</script>
 	</head>
@@ -117,14 +123,14 @@
 			<p>This demonstrates embedding of dynamic content</p>
 			<div id="error"></div>
 			<form id="hash" onSubmit="return false;">
-				<input type="text" id="ens" name="ens" /> <button id="ens_submit">set ens</button><br/>
+				<input type="text" id="ens" name="ens" /> <button id="ens_submit">refresh</button><br/>
 				<input type="text" id="hash_edit" name="hash_edit" size="70" maxlength="66" /> <button id="hash_submit" type="button">send</button>
 			</form>
 			</hr>
 		</div>
 				</body>
 		</html>
-		<iframe id="frame_body" width="100%" height="100%" src="/_loading.html">
+		<iframe id="frame_body" width="100%" height="100%" src="_loading.html">
 		</iframe>
 	</body>
 </html>

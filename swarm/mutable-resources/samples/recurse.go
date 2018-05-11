@@ -131,6 +131,7 @@ OUTER:
 		return
 	}
 	defer lstore.Close()
+	netstore := storage.NewNetStore(lstore, nil)
 
 	rhparams := &storage.ResourceHandlerParams{}
 	rhparams.Signer = resourceSigner
@@ -140,7 +141,7 @@ OUTER:
 		log.Error(err.Error())
 		return
 	}
-	rh.SetStore(lstore)
+	rh.SetStore(netstore)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	rsrc, err := rh.LookupLatestByName(ctx, name, true, &storage.ResourceLookupParams{})
