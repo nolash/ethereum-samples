@@ -99,7 +99,7 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 		if err != nil {
 			Log.Crit("unable to configure swarm", "err", err)
 		}
-		svc, err := swarm.NewSwarm(ctx, nil, bzzconfig, nil)
+		svc, err := swarm.NewSwarm(bzzconfig, nil)
 		if err != nil {
 			return nil, err
 		}

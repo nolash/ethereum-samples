@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 var (
@@ -110,15 +110,13 @@ func main() {
 	messageW.Add(1)
 	go func() {
 		for {
-			select {
-			case peerevent := <-eventOneC:
-				if peerevent.Type == "add" {
-					demo.Log.Debug("Received peer add notification on node #1", "peer", peerevent.Peer)
-				} else if peerevent.Type == "msgrecv" {
-					demo.Log.Info("Received message nofification on node #1", "event", peerevent)
-					messageW.Done()
-				}
-			case <-sub_one.Err():
+			peerevent := <-eventOneC
+			if peerevent.Type == "add" {
+				demo.Log.Debug("Received peer add notification on node #1", "peer", peerevent.Peer)
+			} else if peerevent.Type == "msgrecv" {
+				demo.Log.Info("Received message nofification on node #1", "event", peerevent)
+
+				messageW.Done()
 				return
 			}
 		}
@@ -129,15 +127,12 @@ func main() {
 	messageW.Add(1)
 	go func() {
 		for {
-			select {
-			case peerevent := <-eventTwoC:
-				if peerevent.Type == "add" {
-					demo.Log.Debug("Received peer add notification on node #2", "peer", peerevent.Peer)
-				} else if peerevent.Type == "msgrecv" {
-					demo.Log.Info("Received message nofification on node #2", "event", peerevent)
-					messageW.Done()
-				}
-			case <-sub_two.Err():
+			peerevent := <-eventTwoC
+			if peerevent.Type == "add" {
+				demo.Log.Debug("Received peer add notification on node #2", "peer", peerevent.Peer)
+			} else if peerevent.Type == "msgrecv" {
+				demo.Log.Info("Received message nofification on node #2", "event", peerevent)
+				messageW.Done()
 				return
 			}
 		}

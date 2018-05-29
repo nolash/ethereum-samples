@@ -1,0 +1,130 @@
+\subsection{'Something to say'}
+
+You got someone's attention. Now on to the awkward moment of finding what to say.
+
+Were this a human scenario, we've probably collected a neat heap of one-liners over time to be thrown out as warranted, sorted by crowd type and end purpose.
+
+Computers aren't all that different, but they like to call this stuff protocol instead. However, computers aren't shy about sharing in advance what phrases they like to hear from you. So if you like to be surprised, this is not the domain for you.
+
+When nodes connect, they tell each other which protocols they speak. They then each start an event loop that listens for incoming messages from the other, and associates all mutually spoken protocols with this loop.
+
+Then, as message are received, the code that gets called with the associated protocol makes something happen in the node, and returns whatever answer is appropriate for the occasion.
+
+\subsubsection{Hello, peer}
+
+Let's define a protocol then. And as before, let's do the simplest one we can think of:
+
+\begin{enumerate}
+\item send a short message
+\item wait for a message in return
+\item disconnect
+\end{enumerate}
+
+Protocols are defined using the \verb|p2p.Protocol| struct. First of all it defines some metadata:
+
+\begin{lstlisting}[caption=A4\_Events.go - Declare protocol metadata,firstnumber=30]
+proto = p2p.Protocol{
+	Name:    "foo",
+	Version: 42,
+	Length:  1,
+\end{lstlisting}
+
+The meaning of \verb|Name| and \verb|Version| is likely self-evident. \verb|Length| is the number of different messages involved in this protocol (more on this later).
+
+We also define the code to be run:
+
+\begin{lstlisting}[caption=A4\_Events.go - Run-function signature,firstnumber=34]
+	Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+\end{lstlisting}
+
+The Run-function has to have this signature. So then you know that you will receive the \verb|p2p.Peer| object to play around with, along with the \verb|p2p.MsgReadWriter| which can be written to and read from. Let's do exactly that:
+
+\begin{lstlisting}[caption=A4\_Events.go - Send message, firstnumber=36]
+		// simplest payload possible; a byte slice
+		outmsg := "foobar"
+
+		// send the message
+		err := p2p.Send(rw, 0, outmsg)
+\end{lstlisting}
+
+The \verb|p2p.Send| takes the object to write to as the first argument, and the message to send as the last. The message will take whatever data type\footnote{actually, there are some data types you cannot use. int is one of them. Don't worry about that for now. Anyway, you'll get an error if you try} you submit to it and serialize it in a compact series of bytes that can be rebuilt on the other side. 
+
+The second parameter is the \emph{message code}. That will be explained a bit further down. Moving on:
+
+\begin{lstlisting}[caption=A4\_Events.go - Read message, firstnumber=41]
+		if err != nil {
+			return fmt.Errorf("Send p2p message fail: %v", err)
+		}
+
+		inmsg, err := rw.ReadMsg()
+\end{lstlisting}
+
+Notice that if an error occurs when sending, we \verb|return| from the \verb|Run| function. That has the dire consequence of abruptly and rudely cutting the connection off. Not to be done lightly, in other words.
+
+Assuming that the connection survives, we call \verb|ReadMsg| on the \verb|MsgReadWriter| object. This method will \emph{block} until a message comes in from the other side.
+
+\subsubsection{Teaching the node}
+
+We've defined the protocol. Node we need to tell the node to speak it. This is a simple as slipping a couple of lines into the configuration:
+
+\begin{lstlisting}[caption=A4\_Events.go - Node configuration, firstnumber=65]
+cfg := p2p.Config{
+	PrivateKey:      privkey,
+	Name:            common.MakeName(name, version),
+	MaxPeers:        1,
+	Protocols:       []p2p.Protocol{proto},
+	EnableMsgEvents: true,
+}
+\end{lstlisting}
+
+The \verb|Protocols| member takes an array of protocols to add. That's all that's really needed.
+
+However, in this case we also set the \verb|EnableMsgEvents| to true, so we can listen for message events in the same manner we listened for connection events in the previous chapter. They are disabled by default to protect ourselves against excessive noise, I guess.
+
+\begin{lstlisting}[caption=A4\_Events.go - Event listener, firstnumber=106]
+// set up the event subscriptions on both servers
+// the Err() on the Subscription object returns when subscription is closed
+eventOneC := make(chan *p2p.PeerEvent)
+sub_one := srv_one.SubscribeEvents(eventOneC)
+messageW.Add(1)
+go func() {
+	for {
+		peerevent := <-eventOneC
+		if peerevent.Type == "add" {
+			demo.Log.Debug("Received peer add notification on node #1", "peer", peerevent.Peer)
+		} else if peerevent.Type == "msgrecv" {
+			demo.Log.Info("Received message nofification on node #1", "event", peerevent)
+
+			messageW.Done()
+			return
+		}
+	}
+}()
+\end{lstlisting}
+
+Now that we have two different events to check for, we need to expand the event listener function a bit.
+Since we'll be making sure that both sides have received their expected messages, we use a \verb|WaitGroup| instead of a simple channel to wait at the end of the \verb|main| function.
+Then we simply check for the message type, and if it's \verb|``msgrecv''| (guess what that means) we decrement the wait counter and terminate the forked routine.
+
+\begin{lstlisting}[caption=A4\_Events.go - Epilogue, firstnumber=148]
+	// wait for each respective message to be delivered on both sides
+	messageW.Wait()
+
+	// terminate subscription loops and unsubscribe
+	sub_one.Unsubscribe()
+	sub_two.Unsubscribe()
+\end{lstlisting}
+
+To finish, we call the appropriate \verb|Wait()| and \verb|Unsubscribe()|s, and feel accomplished and hopefully a slight bit less lonely too after having exchanged our first messages.
+
+\subsubsection{Keeping up to code}
+
+I promised to tell you about the ``00'' in the \verb|p2p.Send| call, remember? It goes like this:
+
+All protocols that are added to the node are numbered in sequential order. More specifically all the \emph{message types} of the protocol are numbered. Of course, our example only has one protocol and one message type, and therefore the choice is easy to make. But if there are multiple protocols involved, it gets a bit more \ldots well, involved.
+
+Think back to the configuration of the \verb|p2p.Protocol| object. There was a member called \verb|Length| there. We said that this declares the number of different message types the protocol handles.
+
+When a message is received, every one of the protocols are checked in turn for how many message types they contain, and if the message \verb|Code| falls within those numbers. 
+
+Let's say we have three protocols registered. The first with \verb|Length| 1, second with \verb|Length| 3, third with \verb|Length| 2. The first message \verb|Code| index is 0. So if the received message has message \verb|Code| 0, it belongs to protocol \emph{A}, because it is the first and has only one message. If it has message \verb|Code| 2, it matches protocol \emph{B} because, being \verb|Length| 3 and directly following \emph{A} it has messages 1, 2 and 3. And if the message has number 6 \ldots well, the protocol \emph{C} ends at 5, so that message will be \emph{unknown} and return an error. Remember what happens with errors in protocols? It means instant hangup. No farewell the wells, no see you later alligators. Just ``click''. So beware!
