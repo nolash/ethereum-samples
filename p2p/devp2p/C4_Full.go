@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 var (
@@ -38,7 +38,7 @@ type fooService struct {
 // specify API structs that carry the methods we want to use
 func (self *fooService) APIs() []rpc.API {
 	return []rpc.API{
-		rpc.API{
+		{
 			Namespace: "foo",
 			Version:   "42",
 			Service: &FooAPI{
@@ -55,7 +55,7 @@ func (self *fooService) APIs() []rpc.API {
 // sends a ping to its peer, waits pong
 func (self *fooService) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{
-		p2p.Protocol{
+		{
 			Name:    "fooping",
 			Version: 666,
 			Length:  1,

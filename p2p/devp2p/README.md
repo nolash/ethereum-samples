@@ -8,7 +8,7 @@ Please note that the texts are still in draft status, and may contain omissions,
 
 ## USING THESE EXAMPLES
 
-This code uses the go-ethereum library in the state of commit fbf688f2df4add250e847a16bd6ca7b880c78351 on https://github.com/ethersphere/go-ethereum. _This commit is not yet part of the ethereum master branch._ For development using all the features of this example suite, please use this branch instead:
+This code uses the go-ethereum library in the state of commit bff4657c989e529688112d3d89ac6fa4774bbbf1 on https://github.com/ethersphere/go-ethereum. _This commit is not yet part of the ethereum master branch._ For development using all the features of this example suite, please use this branch instead:
 
 https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite
 

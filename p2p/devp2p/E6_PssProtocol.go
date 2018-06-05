@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -18,7 +17,7 @@ import (
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 var (
@@ -100,7 +99,6 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 		}
 
 		// create necessary swarm params
-		var ensApi chequebook.Backend = nil
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
 		bzzconfig.Init(privkey)
@@ -110,7 +108,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		svc, err := swarm.NewSwarm(ctx, ensApi, bzzconfig, nil)
+		svc, err := swarm.NewSwarm(bzzconfig, nil)
 
 		// register the protocols we will be using through pss
 		for i, s := range specs {
@@ -253,7 +251,7 @@ func main() {
 	// addpeer
 	nid, _ := discover.HexID("0x00") // this hack is needed to satisfy the p2p method
 	p := p2p.NewPeer(nid, fmt.Sprintf("%x", l_bzzaddr), []p2p.Cap{})
-	pssprotos[0].AddPeer(p, proto.Run, topic, true, r_pubkey)
+	pssprotos[0].AddPeer(p, topic, true, r_pubkey)
 
 	// wait for each respective message to be delivered on both sides
 	messageW.Wait()

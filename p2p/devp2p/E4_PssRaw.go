@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/contracts/chequebook"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/ethereum/go-ethereum/node"
@@ -16,7 +16,7 @@ import (
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/pss"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.ServiceContext) (node.Service, error) {
@@ -29,7 +29,6 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		}
 
 		// create necessary swarm params
-		var ensApi chequebook.Backend = nil
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
 		bzzconfig.Pss.AllowRaw = true
@@ -40,7 +39,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		return swarm.NewSwarm(ctx, ensApi, bzzconfig, nil)
+		return swarm.NewSwarm(bzzconfig, nil)
 
 	}
 }
@@ -97,8 +96,12 @@ func main() {
 	}
 	time.Sleep(time.Second) // because the healthy does not work
 
-	// set the topic byte to unecrypted magic value
-	topic := "0x00000000"
+	// get a valid topic byte
+	var topic string
+	err = l_rpcclient.Call(&topic, "pss_stringToTopic", "foo")
+	if err != nil {
+		demo.Log.Crit("pss string to topic fail", "err", err)
+	}
 
 	// subscribe to incoming messages on the receiving sevicenode
 	// this will register a message handler on the specified topic
@@ -130,7 +133,7 @@ func main() {
 
 	// send message using symmetric encryption
 	// since it's sent to ourselves, it will not go through pss forwarding
-	err = l_rpcclient.Call(nil, "pss_sendRaw", ciphertext, r_bzzaddr)
+	err = l_rpcclient.Call(nil, "pss_sendRaw", r_bzzaddr, topic, common.ToHex(ciphertext))
 	if err != nil {
 		demo.Log.Crit("pss send fail", "err", err)
 	}

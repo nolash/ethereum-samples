@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 // the fooservice retrieves the shared value
@@ -25,7 +25,7 @@ func newFooService(v *int) *fooService {
 
 func (self *fooService) APIs() []rpc.API {
 	return []rpc.API{
-		rpc.API{
+		{
 			Namespace: "foo",
 			Version:   "0.42",
 			Service:   &FooAPI{self.v},
@@ -67,7 +67,7 @@ func newBarService(v *int) *barService {
 
 func (self *barService) APIs() []rpc.API {
 	return []rpc.API{
-		rpc.API{
+		{
 			Namespace: "bar",
 			Version:   "0.42",
 			Service:   &BarAPI{self.v},

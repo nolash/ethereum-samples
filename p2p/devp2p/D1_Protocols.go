@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 var (

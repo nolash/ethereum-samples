@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/node"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 const (

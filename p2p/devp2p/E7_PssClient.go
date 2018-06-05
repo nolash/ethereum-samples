@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contracts/chequebook"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -18,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/pss"
 	pssclient "github.com/ethereum/go-ethereum/swarm/pss/client"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 // simple ping and receive protocol
@@ -65,7 +64,6 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		}
 
 		// create necessary swarm params
-		var ensApi chequebook.Backend = nil
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
 		bzzconfig.Init(privkey)
@@ -75,7 +73,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		bzzconfig.Port = fmt.Sprintf("%d", bzzport)
 
 		// shortcut to setting up a swarm node
-		return swarm.NewSwarm(ctx, ensApi, bzzconfig, nil)
+		return swarm.NewSwarm(bzzconfig, nil)
 
 	}
 }

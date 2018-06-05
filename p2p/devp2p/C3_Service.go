@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	demo "github.com/nolash/go-ethereum-p2p-demo/common"
+	demo "./common"
 )
 
 var (
@@ -28,13 +28,13 @@ type fooService struct {
 // specify API structs that carry the methods we want to use
 func (self *fooService) APIs() []rpc.API {
 	return []rpc.API{
-		rpc.API{
+		{
 			Namespace: "foo",
 			Version:   "0.42",
 			Service:   &FooAPI{self.V},
 			Public:    true,
 		},
-		rpc.API{
+		{
 			Namespace: "bar",
 			Version:   "0.666",
 			Service:   &BarAPI{},

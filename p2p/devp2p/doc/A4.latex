@@ -1,4 +1,4 @@
-\subsection{'Something to say'}
+\subsection{Something to say}
 
 You got someone's attention. Now on to the awkward moment of finding what to say.
 
@@ -59,13 +59,13 @@ The second parameter is the \emph{message code}. That will be explained a bit fu
 		inmsg, err := rw.ReadMsg()
 \end{lstlisting}
 
-Notice that if an error occurs when sending, we \verb|return| from the \verb|Run| function. That has the dire consequence of abruptly and rudely cutting the connection off. Not to be done lightly, in other words.
+Notice that if an error occurs when sending, we \verb|return| from the \verb|Run| function. That has the dire consequence of abruptly and rudely cutting the connection off. Not to be done carelessly, in other words.
 
 Assuming that the connection survives, we call \verb|ReadMsg| on the \verb|MsgReadWriter| object. This method will \emph{block} until a message comes in from the other side.
 
 \subsubsection{Teaching the node}
 
-We've defined the protocol. Node we need to tell the node to speak it. This is a simple as slipping a couple of lines into the configuration:
+We've defined the protocol. Now we need to tell the node to speak it. The headline lies; there's no teaching involved. It is as simple as slipping a couple of lines into the configuration:
 
 \begin{lstlisting}[caption=A4\_Events.go - Node configuration, firstnumber=65]
 cfg := p2p.Config{
@@ -79,7 +79,7 @@ cfg := p2p.Config{
 
 The \verb|Protocols| member takes an array of protocols to add. That's all that's really needed.
 
-However, in this case we also set the \verb|EnableMsgEvents| to true, so we can listen for message events in the same manner we listened for connection events in the previous chapter. They are disabled by default to protect ourselves against excessive noise, I guess.
+However, in this case we also set the \verb|EnableMsgEvents| to true, so we can listen for message events in the same manner we listened for connection events in the previous chapter. They are disabled by default. To protect ourselves against excessive noise, I guess.
 
 \begin{lstlisting}[caption=A4\_Events.go - Event listener, firstnumber=106]
 // set up the event subscriptions on both servers
@@ -119,7 +119,7 @@ To finish, we call the appropriate \verb|Wait()| and \verb|Unsubscribe()|s, and 
 
 \subsubsection{Keeping up to code}
 
-I promised to tell you about the ``00'' in the \verb|p2p.Send| call, remember? It goes like this:
+I promised to tell you about the ``0'' in the \verb|p2p.Send| call, remember? It goes something like this:
 
 All protocols that are added to the node are numbered in sequential order. More specifically all the \emph{message types} of the protocol are numbered. Of course, our example only has one protocol and one message type, and therefore the choice is easy to make. But if there are multiple protocols involved, it gets a bit more \ldots well, involved.
 
