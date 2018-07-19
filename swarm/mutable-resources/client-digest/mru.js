@@ -11,13 +11,6 @@ var mruUpdateHeaderLengthLength = 2;
 var mruUpdateHeaderLength = mruUpdateFlagLength + mruUpdatePeriodLength + mruUpdateVersionLength + mruMetaHashLength + mruRootAddrLength;
 var mruUpdateMinLength = mruUpdateHeaderLength + mruUpdateDataLengthLength + mruUpdateHeaderLengthLength;
 
-var _buf = new ArrayBuffer(mruUpdateHeaderLengthLength);
-var _view = new DataView(_buf);
-_view.setUint16(0, mruUpdateHeaderLength);
-var mruUpdateHeaderLengthBytes = new Uint8Array(_buf);
-delete _buf;
-delete _view;
-
 function mruUpdateDigest(o) {
 
 	var metaHashBytes = undefined;
@@ -92,21 +85,13 @@ function mruUpdateDigest(o) {
 	return web3.utils.sha3(web3.utils.bytesToHex(new Uint8Array(buf)));
 }
 
-var before = Date.now();
-for (var i = 0; i < 10000; i++) {
-	//console.log(mruUpdateDigest({
-	mruUpdateDigest({
-		"period": 42,
-		"version": 13,
-		"multihash": false,
-		"data": "0x666f6f",
-		"metaHash": "0x2c1183eed6a4b0046da699e2655a406d20754ef02fcc7625ee24579a4c0970eb", 
-		"rootAddr": "0xfe9a53da332939697dd3b2d706f161ba75162805752efe7d365f2ed3f5cbd380" 
-	});
-	//}));
-}
-var after = Date.now();
-
-var delta = after - before;
-console.log(delta);
-
+mru = mruUpdateDigest({
+	"period": 42,
+	"version": 13,
+	"multihash": false,
+	"data": "0x666f6f",
+	"metaHash": "0x2c1183eed6a4b0046da699e2655a406d20754ef02fcc7625ee24579a4c0970eb", 
+	"rootAddr": "0xfe9a53da332939697dd3b2d706f161ba75162805752efe7d365f2ed3f5cbd380" 
+});
+	
+console.log(mru);
