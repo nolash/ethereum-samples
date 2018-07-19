@@ -108,11 +108,20 @@ function mruUpdateDigest(o) {
 	return web3.utils.sha3(web3.utils.bytesToHex(b));
 }
 
-console.log(mruUpdateDigest({
-	"period": 42,
-	"version": 13,
-	"multihash": false,
-	"data": "0x666f6f",
-	"metaHash": "0x2c1183eed6a4b0046da699e2655a406d20754ef02fcc7625ee24579a4c0970eb", 
-	"rootAddr": "0xfe9a53da332939697dd3b2d706f161ba75162805752efe7d365f2ed3f5cbd380" 
-}));
+var before = Date.now();
+for (var i = 0; i < 10000; i++) {
+	//console.log(mruUpdateDigest({
+	mruUpdateDigest({
+		"period": 42,
+		"version": 13,
+		"multihash": false,
+		"data": "0x666f6f",
+		"metaHash": "0x2c1183eed6a4b0046da699e2655a406d20754ef02fcc7625ee24579a4c0970eb", 
+		"rootAddr": "0xfe9a53da332939697dd3b2d706f161ba75162805752efe7d365f2ed3f5cbd380" 
+	});
+	//}));
+}
+var after = Date.now();
+
+var delta = after - before;
+console.log(delta);
