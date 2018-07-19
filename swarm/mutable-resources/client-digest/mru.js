@@ -10,19 +10,30 @@ var mruUpdateDataLengthLength = 2;
 var mruUpdateHeaderLengthLength = 2;
 var mruUpdateHeaderLength = mruUpdateFlagLength + mruUpdatePeriodLength + mruUpdateVersionLength + mruMetaHashLength + bzzKeyLength;
 
-function numberToBytesLE(n, l) {
+function unsignedNumberToBytesLE(n, l) {
 	if (isNaN(parseInt(n, 10))) {
 		throw "invalid number";
 	}
-	var b = [];
-	for (var i = 0; i < l; i++) {
-		b.push(n & 0xff);
-		n >>= 8;	
+	var buf = new ArrayBuffer(l);
+	var v = new DataView(buf);
+	switch(l) {
+		case 1:
+			v.setUint8(0, n, true);
+			break;
+		case 2:
+			v.setUint16(0, n, true);
+			break;
+		case 4:
+			v.setUint32(0, n, true);
+			break;
+		default:
+			return undefined;
 	}
-	return b;
+						
+	return Array.from(new Uint8Array(buf));
 }
 
-var mruUpdateHeaderLengthBytes = numberToBytesLE(mruUpdateHeaderLength, mruUpdateHeaderLengthLength);
+var mruUpdateHeaderLengthBytes = unsignedNumberToBytesLE(mruUpdateHeaderLength, mruUpdateHeaderLengthLength);
 
 function mruUpdateDigest(o) {
 
@@ -58,12 +69,12 @@ function mruUpdateDigest(o) {
 		return undefined;
 	}
 
-	numberToBytesLE(dataBytes.length, mruUpdateDataLengthLength).forEach(function(v) {
+	unsignedNumberToBytesLE(dataBytes.length, mruUpdateDataLengthLength).forEach(function(v) {
 		b.push(v);
 	});
 
 	try {
-		numberToBytesLE(o.period, mruUpdatePeriodLength).forEach(function(v) {
+		unsignedNumberToBytesLE(o.period, mruUpdatePeriodLength).forEach(function(v) {
 			b.push(v);
 		});
 	} catch(e) {
@@ -72,7 +83,7 @@ function mruUpdateDigest(o) {
 	}
 
 	try {
-		numberToBytesLE(o.version, mruUpdateVersionLength).forEach(function(v) {
+		unsignedNumberToBytesLE(o.version, mruUpdateVersionLength).forEach(function(v) {
 			b.push(v);
 		});
 	} catch(e) {
