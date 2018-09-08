@@ -72,7 +72,7 @@ function mruUpdateDigest(o) {
 		cursor++;
 	});
 
-	return web3.utils.bytesToHex(new Uint8Array(buf));
+	return web3.utils.sha3(web3.utils.bytesToHex(new Uint8Array(buf)));
 }
 
 function mruUpdateDigest_(o) {
