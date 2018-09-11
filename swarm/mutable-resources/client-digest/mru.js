@@ -52,23 +52,10 @@ function mruDigest(o) {
 		cursor++;
 	});
 	
-	// time is little endian
-	var timeBuf = new ArrayBuffer(4);
-	var timeView = new DataView(timeBuf);
-	//view.setUint32(cursor, o.time);
-	timeView.setUint32(0, o.time);
-	var timeBufArray = new Uint8Array(timeBuf);
-	for (i = 0; i < 4; i++) {
-		view.setUint8(cursor, timeBufArray[3-i]);
-		cursor++;
-	}
+	// time is little-endian
+	view.setUint32(cursor, o.time, true);
+	cursor += 7;
 
-	for (i = 0; i < 3; i++) {
-		view.setUint8(cursor, 0);
-		cursor++;
-	}
-
-	//cursor += 4;
 	view.setUint8(cursor, o.level);
 	cursor++;
 
