@@ -1,12 +1,18 @@
 var web3 = require("web3");
 
+if (module !== undefined) {
+	module.exports = {
+		digest: mruDigest
+	}
+}
+
 var topicLength = 32;
 var userLength = 20;
 var timeLength = 7;
 var levelLength = 1;
 var updateMinLength = topicLength + userLength + timeLength + levelLength;
 
-function mruUpdateDigest(o) {
+function mruDigest(o) {
 	var topicBytes = undefined;
 	var dataBytes = undefined;
 	var userBytes = undefined;
@@ -74,14 +80,3 @@ function mruUpdateDigest(o) {
 	return web3.utils.sha3(web3.utils.bytesToHex(new Uint8Array(buf)));
 }
 
-mru = mruUpdateDigest(
-	{	
-		"topic": "0x0102000000000000000000000000000000000000000000000000000000000304",
-		"data": "0x666f6f",	
-		"user": "0x44defd3d4e99c2f97e68f3a0a6462e590fd10b91",
-		"time": 1536427515,
-		"level": 25,
-	}
-);
-	
-console.log(mru);
