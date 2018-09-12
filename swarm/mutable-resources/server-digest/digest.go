@@ -82,7 +82,11 @@ func init() {
 func main() {
 	r := mru.NewFirstRequest(topic)
 	r.User = user
-	r.ResourceUpdate.UpdateLookup.Epoch = lookup.Epoch{
+	//	r.ResourceUpdate.UpdateLookup.Epoch = lookup.Epoch{
+	//		Level: epochLevel,
+	//		Time:  epochTime,
+	//	}
+	r.Epoch = lookup.Epoch{
 		Level: epochLevel,
 		Time:  epochTime,
 	}
