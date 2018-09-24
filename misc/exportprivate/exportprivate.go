@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -134,8 +135,35 @@ If argument is keyfile, the -d flag will be ignored
 		log.Error("cannot read file", "err", err)
 		os.Exit(1)
 	}
-	fmt.Printf("pass:")
-	bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
+	bytePassword := make([]byte, 1024)
+	stat, err := os.Stdin.Stat()
+	if err != nil && err != io.EOF {
+		log.Error("cannot access stdin", "err", err)
+		os.Exit(1)
+	}
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		total := 0
+		for {
+			c, err := os.Stdin.Read(bytePassword)
+			total += c
+			log.Debug("read", "c", c)
+			if err != nil {
+				if err == io.EOF {
+					if bytePassword[total-1] == 0x0a {
+						total--
+					}
+					bytePassword = bytePassword[:total]
+					log.Debug("have", "pass", bytePassword)
+					break
+				}
+				fmt.Fprintf(os.Stderr, "read err: %v", err)
+				os.Exit(1)
+			}
+		}
+	} else {
+		fmt.Printf("pass:")
+		bytePassword, err = terminal.ReadPassword(int(syscall.Stdin))
+	}
 	passphrase := string(bytePassword)
 	fmt.Println("\ndecrypting keyfile...")
 	key, err := keystore.DecryptKey(j, passphrase)

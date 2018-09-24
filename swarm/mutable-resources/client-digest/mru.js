@@ -1,4 +1,5 @@
 var web3 = require("web3");
+var ethtx = require("ethereumjs-tx");
 
 if (module !== undefined) {
 	module.exports = {
