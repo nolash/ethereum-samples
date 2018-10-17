@@ -37,7 +37,7 @@ type fooHandler struct {
 	peer *p2p.Peer
 }
 
-func (self *fooHandler) handle(msg interface{}) error {
+func (self *fooHandler) handle(ctx context.Context, msg interface{}) error {
 	foomsg, ok := msg.(*FooMsg)
 	if !ok {
 		return fmt.Errorf("invalid message", "msg", msg, "peer", self.peer)
@@ -56,6 +56,9 @@ var (
 
 			// create the enhanced peer
 			pp := protocols.NewPeer(p, rw, &fooProtocol)
+
+			// empty context
+			ctx := context.Background()
 
 			// send the message
 			outmsg := &FooMsg{
