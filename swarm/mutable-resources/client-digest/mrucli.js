@@ -17,21 +17,25 @@ if (restArgs.length == 0) {
 } else {
 	inBuf = fs.readFileSync(restArgs[0]);
 }
-
-if (flags.get("hex")) {
-	inBuf = inBuf.toString("ascii");
-} else {
+//
+//if (flags.get("hex")) {
+//	inBuf = inBuf.toString("ascii");
+//} else {
+	//inBuf = web3.utils.bytesToHex(inBuf);
 	inBuf = web3.utils.bytesToHex(inBuf);
-}
+//}
 
-mruData = {	
-	"topic": flags.get("topic"),
-	"user": flags.get("user"),
-	"time": flags.get("time"),
-	"level": flags.get("level"),
-	"data": inBuf
+var mruData = {	
+	"feed":{
+		"topic": flags.get("topic"),
+		"user": flags.get("user"),
+	},
+	"epoch": {
+			"time": flags.get("time"),
+			"level": flags.get("level"),
+	},
+	protocolVersion: 0
 };
 
-mruResult = mru.digest(mruData);
+mruResult = mru.digest(mruData, inBuf);
 console.log(mruResult);
-

@@ -1,0 +1,90 @@
+<html>
+<head>
+
+<style type="text/css">
+li {
+	font-size: 0.7em;
+}
+div.error {
+color: #f00;
+}
+</style>
+
+<script src="lib/ethereumjs/ethereumjs-tx-1.3.3.min.js"></script>
+<script src="lib/trezor/trezor-connect.js"></script>
+<script>
+var txhx = "";
+function trezorSignTx() {
+	document.getElementById("error").innerText = "";
+	// spend one change output
+	var address_n = document.getElementById("path").value;
+	var nonce = '05'; // note - it is hex, not number!!!
+
+	var gas_price = "09c7652400";
+	var gas_limit = 'a43f';
+	var to = "76ce510a2c3d4052a6f8536111fd4ac8f61a6087";
+	var value = '10000000000000'; // in hexadecimal, in wei - this is about 18 ETC
+	var data = '6f6666';
+	var chain_id = 3; // 1 for ETH, 61 for ETC
+
+	var txobj = {
+path: address_n,
+      transaction: {
+	to: to,
+    value: value,
+    data: data,
+    chainId: chain_id,
+    nonce: nonce,
+    gasLimit: gas_limit,
+    gasPrice: gas_price
+      }
+	};
+
+	TrezorConnect.ethereumSignTransaction(txobj).then(
+			function (response) {
+			if (response.success) {
+			console.log('Signature V (recovery parameter):', response.payload.v); // number
+			console.log('Signature R component:', response.payload.r); // bytes
+			console.log('Signature S component:', response.payload.s); // bytes
+			var rawTx = {
+nonce: "0x"+nonce,
+gasPrice: "0x"+gas_price,
+gasLimit: "0x"+gas_limit,
+to: "0x"+to,
+value: "0x"+value,
+data: "0x"+data,
+chainId: "0x03",
+v: response.payload.v,//.toString(16),
+r: response.payload.r,
+s: response.payload.s,
+}
+var tx = new ethereumjs.Tx(rawTx);
+var s = "";
+tx.getSenderAddress().map(
+	function(x) {
+		console.log(x);
+	s += ("00"+x.toString(16)).slice(-2);});
+console.log(s);
+var serializedTx = tx.serialize();
+txhx = "0x"+serializedTx.toString("hex");
+console.log(txhx);
+	var litem = document.createElement("li");
+	litem.innerHTML = "[" + s + "] " + txhx;
+	document.getElementById("response").appendChild(litem);
+
+} else {
+	document.getElementById("error").innerText = 'Error: ' + response.payload.error;
+}
+
+}
+);
+}
+</script>
+</head>
+<body>
+<div id="error" class="error"></div>
+<input type="text" id="path" value="m/44'/60'/1'/0/0" />
+<button onClick="trezorSignTx();" label="click">click</button>
+<ul id="response"></ul>
+</body>
+</html>

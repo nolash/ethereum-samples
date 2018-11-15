@@ -180,7 +180,6 @@ If argument is keyfile, the -d flag will be ignored
 		os.Exit(1)
 	}
 	log.Info("ok", "privkey", privkeyhex, "address", crypto.PubkeyToAddress(privkeyregen.PublicKey))
-	//fmt.Println(privkeyhex)
 
 	requestJson, err := ioutil.ReadFile(g_file)
 	if err != nil {

@@ -61,3 +61,4 @@ function getFeedManifestFromHex(topic, name, user) {
 }
 
 console.log(getFeedManifestFromHex("0x660000000000000000000000000000000000000000000000000000000000002a", "foo", "19cb96e2fcf9afd95ef06a504ca4feb89c05ca88"));
+console.log(getFeedManifestFromHex("0x2a", "foo", "19cb96e2fcf9afd95ef06a504ca4feb89c05ca88"));
