@@ -2,11 +2,12 @@ package common
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	discover "github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
-	"time"
 )
 
 const (
@@ -60,15 +61,18 @@ func (self *FooService) APIs() []rpc.API {
 // the p2p.Protocol to run
 // sends a ping to its peer, waits pong
 func (self *FooService) Protocols() []p2p.Protocol {
+
 	return []p2p.Protocol{
 		p2p.Protocol{
 			Name:    "fooping",
 			Version: 666,
 			Length:  1,
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-
+				str_id := []byte(p.String())
+				var byte_id [64]byte
+				copy(str_id[:64], byte_id[:64])
 				// create the channel when a connection is made
-				self.pingC[p.ID()] = make(chan struct{})
+				self.pingC[byte_id] = make(chan struct{})
 				pingcount := 0
 
 				// create the message structure
@@ -115,7 +119,11 @@ func (self *FooService) Protocols() []p2p.Protocol {
 				// pings are invoked through the API using a channel
 				// when this channel is closed we quit the protocol
 				for {
-					_, ok := <-self.pingC[p.ID()]
+					str_id := []byte(p.String())
+					var byte_id [64]byte
+					copy(str_id[:64], byte_id[:64])
+
+					_, ok := <-self.pingC[byte_id]
 					if !ok {
 						Log.Debug("break protocol", "peer", p)
 						break

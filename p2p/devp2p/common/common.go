@@ -13,13 +13,12 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	discover "github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
-	"github.com/ethereum/go-ethereum/swarm/pss"
 )
 
 const (
@@ -104,12 +103,13 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 			return nil, err
 		}
 
-		for i, s := range specs {
-			_, err := svc.RegisterPssProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
-			if err != nil {
-				return nil, err
-			}
-		}
+		/*		for i, s := range specs {
+					_, err := svc.RegisterProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
+					if err != nil {
+						return nil, err
+					}
+				}
+		*/
 		return svc, nil
 	}
 }
@@ -213,7 +213,7 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 				return err
 			}
 			Log.Debug("health", "i", i, "addr", common.ToHex(addrs[i]), "id", ids[i], "info", health)
-			if health.KnowNN && health.GotNN && health.Full {
+			if health.KnowNN && health.ConnectNN && health.Saturated {
 				healthycount++
 			}
 		}
