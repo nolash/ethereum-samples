@@ -204,8 +204,8 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 		addrs = append(addrs, common.FromHex(bzzaddr))
 	}
 	peerpot := network.NewPeerPotMap(minbinsize, addrs)
+	healthycount := 0
 	for {
-		healthycount := 0
 		for i, r := range rpcs {
 			var health network.Health
 			err := r.Call(&health, "hive_healthy", peerpot)
