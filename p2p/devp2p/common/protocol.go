@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
 	"time"
@@ -36,19 +36,19 @@ var (
 // it must implement the node.Service interface
 type FooService struct {
 	pongcount int
-	pingC     map[discover.NodeID]chan struct{}
+	pingC     map[enode.ID]chan struct{}
 }
 
 func NewFooService() *FooService {
 	return &FooService{
-		pingC: make(map[discover.NodeID]chan struct{}),
+		pingC: make(map[enode.ID]chan struct{}),
 	}
 }
 
 // specify API structs that carry the methods we want to use
 func (self *FooService) APIs() []rpc.API {
 	return []rpc.API{
-		rpc.API{
+		{
 			Namespace: "foo",
 			Version:   "42",
 			Service:   NewFooAPI(self.pingC, &self.pongcount),
@@ -61,7 +61,7 @@ func (self *FooService) APIs() []rpc.API {
 // sends a ping to its peer, waits pong
 func (self *FooService) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{
-		p2p.Protocol{
+		{
 			Name:    "fooping",
 			Version: 666,
 			Length:  1,
@@ -152,10 +152,10 @@ func (self *FooService) Stop() error {
 type FooAPI struct {
 	running   bool
 	pongcount *int
-	pingC     map[discover.NodeID]chan struct{}
+	pingC     map[enode.ID]chan struct{}
 }
 
-func NewFooAPI(pingC map[discover.NodeID]chan struct{}, pongcount *int) *FooAPI {
+func NewFooAPI(pingC map[enode.ID]chan struct{}, pongcount *int) *FooAPI {
 	return &FooAPI{
 		running:   true,
 		pingC:     pingC,
@@ -168,7 +168,7 @@ func (api *FooAPI) Increment() {
 }
 
 // invoke a single ping
-func (api *FooAPI) Ping(id discover.NodeID) error {
+func (api *FooAPI) Ping(id enode.ID) error {
 	if api.running {
 		api.pingC[id] <- struct{}{}
 	}
@@ -176,7 +176,7 @@ func (api *FooAPI) Ping(id discover.NodeID) error {
 }
 
 // quit the ping protocol
-func (api *FooAPI) Quit(id discover.NodeID) error {
+func (api *FooAPI) Quit(id enode.ID) error {
 	Log.Debug("quitting API", "peer", id)
 	if api.pingC[id] == nil {
 		return fmt.Errorf("unknown peer")

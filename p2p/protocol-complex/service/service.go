@@ -160,9 +160,11 @@ func (self *Demo) Run(p *protocols.Peer) error {
 		self.mu.RLock()
 		maxdifficulty := self.maxDifficulty
 		self.mu.RUnlock()
-		p.Send(&protocol.Skills{
-			Difficulty: maxdifficulty,
-		})
+		p.Send(context.TODO(),
+			&protocol.Skills{
+				Difficulty: maxdifficulty,
+			},
+		)
 		if maxdifficulty > 0 {
 			return
 		}
@@ -216,7 +218,7 @@ func (self *Demo) submitRequest(data []byte, difficulty uint8) (protocol.ID, err
 		Data:       data,
 		Difficulty: difficulty,
 	}
-	err := p.Send(req)
+	err := p.Send(context.TODO(), req)
 	if err == nil {
 		if err := self.submits.Put(req, id); err != nil {
 			log.Error("submits put fail", "err", err)
@@ -274,19 +276,24 @@ func (self *Demo) requestHandlerLocked(msg *protocol.Request, p *protocols.Peer)
 	log.Trace("have request type", "msg", msg, "currentjobs", self.currentJobs, "ourdifficulty", self.maxDifficulty, "peer", p)
 
 	if self.currentJobs >= self.maxJobs || self.results.IsFull() {
-		go p.Send(&protocol.Status{
-			Id:   msg.Id,
-			Code: protocol.StatusBusy,
-		})
+		go p.Send(context.TODO(),
+			&protocol.Status{
+				Id:   msg.Id,
+				Code: protocol.StatusBusy,
+			},
+		)
 		log.Error("Too busy!")
 		return nil
 	}
 
 	if self.maxDifficulty < msg.Difficulty {
-		go p.Send(&protocol.Status{
-			Id:   msg.Id,
-			Code: protocol.StatusAreYouKidding,
-		})
+		go p.Send(
+			context.TODO(),
+			&protocol.Status{
+				Id:   msg.Id,
+				Code: protocol.StatusAreYouKidding,
+			},
+		)
 		return fmt.Errorf("too hard!")
 	}
 	self.currentJobs++
@@ -299,10 +306,13 @@ func (self *Demo) requestHandlerLocked(msg *protocol.Request, p *protocols.Peer)
 		j, err := doJob(ctx, msg.Data, msg.Difficulty)
 
 		if err != nil {
-			go p.Send(&protocol.Status{
-				Id:   msg.Id,
-				Code: protocol.StatusGaveup,
-			})
+			go p.Send(
+				context.TODO(),
+				&protocol.Status{
+					Id:   msg.Id,
+					Code: protocol.StatusGaveup,
+				},
+			)
 			log.Debug("too long!")
 			return
 		}
@@ -318,7 +328,7 @@ func (self *Demo) requestHandlerLocked(msg *protocol.Request, p *protocols.Peer)
 		self.currentJobs--
 		self.mu.Unlock()
 
-		go p.Send(res)
+		go p.Send(context.TODO(), res)
 
 		log.Debug("finished job", "id", fmt.Sprintf("%x", msg.Id), "nonce", j.Nonce, "hash", j.Hash)
 	}(msg)
@@ -341,10 +351,13 @@ func (self *Demo) resultHandlerLocked(msg *protocol.Result, p *protocols.Peer) e
 	if !checkJob(msg.Hash, self.submits.GetData(msg.Id), msg.Nonce) {
 		return fmt.Errorf("Got incorrect result job %x from %s", msg.Id, p.ID())
 	}
-	go p.Send(&protocol.Status{
-		Id:   msg.Id,
-		Code: protocol.StatusThanksABunch,
-	})
+	go p.Send(
+		context.TODO(),
+		&protocol.Status{
+			Id:   msg.Id,
+			Code: protocol.StatusThanksABunch,
+		},
+	)
 	self.save(self.id, msg.Id, self.submits.GetDifficulty(msg.Id), self.submits.GetData(msg.Id), msg.Nonce, msg.Hash)
 	return nil
 }

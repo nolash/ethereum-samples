@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rpc"
 
 	demo "./common"
@@ -32,7 +32,7 @@ type FooPingMsg struct {
 // it must implement the node.Service interface
 type fooService struct {
 	pongcount int
-	pingC     map[discover.NodeID]chan struct{}
+	pingC     map[enode.ID]chan struct{}
 }
 
 // specify API structs that carry the methods we want to use
@@ -147,7 +147,7 @@ func (self *fooService) Stop() error {
 type FooAPI struct {
 	running   bool
 	pongcount *int
-	pingC     map[discover.NodeID]chan struct{}
+	pingC     map[enode.ID]chan struct{}
 }
 
 func (api *FooAPI) Increment() {
@@ -155,7 +155,7 @@ func (api *FooAPI) Increment() {
 }
 
 // invoke a single ping
-func (api *FooAPI) Ping(id discover.NodeID) error {
+func (api *FooAPI) Ping(id enode.ID) error {
 	if api.running {
 		api.pingC[id] <- struct{}{}
 	}
@@ -163,7 +163,7 @@ func (api *FooAPI) Ping(id discover.NodeID) error {
 }
 
 // quit the ping protocol
-func (api *FooAPI) Quit(id discover.NodeID) error {
+func (api *FooAPI) Quit(id enode.ID) error {
 	demo.Log.Debug("quitting API", "peer", id)
 	if api.pingC[id] == nil {
 		return fmt.Errorf("unknown peer")
@@ -220,7 +220,7 @@ func main() {
 	// wrapper function for servicenode to start the service
 	foosvc := func(ctx *node.ServiceContext) (node.Service, error) {
 		return &fooService{
-			pingC: make(map[discover.NodeID]chan struct{}),
+			pingC: make(map[enode.ID]chan struct{}),
 		}, nil
 	}
 
@@ -359,11 +359,11 @@ func main() {
 
 	// tell the API to shut down
 	// this will disconnect the peers and close the channels connecting API and protocol
-	err = rpcclient_one.Call(nil, "foo_quit", srv_two.Self().ID)
+	err = rpcclient_one.Call(nil, "foo_quit", srv_two.Self().ID())
 	if err != nil {
 		demo.Log.Error("server #1 RPC quit fail", "err", err)
 	}
-	err = rpcclient_two.Call(nil, "foo_quit", srv_one.Self().ID)
+	err = rpcclient_two.Call(nil, "foo_quit", srv_one.Self().ID())
 	if err != nil {
 		demo.Log.Error("server #2 RPC quit fail", "err", err)
 	}

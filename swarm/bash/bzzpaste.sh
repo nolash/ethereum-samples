@@ -11,7 +11,7 @@ else
 	dir=`realpath $PWD`
 fi
 
-# hader
+# help output head
 helpout=$(cat <<EOF
 bzzp - quick swarm paste script
 \n

@@ -8,9 +8,9 @@ Please note that the texts are still in draft status, and may contain omissions,
 
 ## USING THESE EXAMPLES
 
-This code uses the go-ethereum library in the state of commit bff4657c989e529688112d3d89ac6fa4774bbbf1 on https://github.com/ethersphere/go-ethereum. _This commit is not yet part of the ethereum master branch._ For development using all the features of this example suite, please use this branch instead:
-
-https://github.com/ethersphere/go-ethereum/tree/swarm-network-rewrite
+```
+go run <filename> [-v]
+```
 
 ## TODO
 
@@ -114,10 +114,10 @@ Pss enables encrypted messaging between nodes that aren't directly connected thr
 
   Using the builtin convenience method for Diffie-Hellmann key exchange.
 
-* E6_PssProtocol.go
+* E6_PssProtocol.go - **broken**
 
   Implementing devp2p style protocols over pss.
 
-* E7_PssClient.go
+* E7_PssClient.go - **broken**
 
   Mounting devp2p style protocols on an RPC connection.

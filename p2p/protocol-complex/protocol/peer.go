@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"context"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/p2p/protocols"
@@ -17,7 +18,7 @@ type DemoPeer struct {
 }
 
 // Dispatcher for incoming messages
-func (self *DemoPeer) Handle(msg interface{}) error {
+func (self *DemoPeer) Handle(ctx context.Context, msg interface{}) error {
 	if typ, ok := msg.(*Skills); ok {
 		return self.skillsHandler(typ, self.Peer)
 	}

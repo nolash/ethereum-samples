@@ -118,12 +118,12 @@ func main() {
 	// subscribe to incoming messages on both servicenodes
 	// this will register message handlers, needed to receive reciprocal comms
 	l_msgC := make(chan pss.APIMsg)
-	l_sub_pss, err := l_rpcclient.Subscribe(context.Background(), "pss", l_msgC, "receive", topic)
+	l_sub_pss, err := l_rpcclient.Subscribe(context.Background(), "pss", l_msgC, "receive", topic, false, false)
 	if err != nil {
 		demo.Log.Crit("pss subscribe error", "err", err)
 	}
 	r_msgC := make(chan pss.APIMsg)
-	r_sub_pss, err := r_rpcclient.Subscribe(context.Background(), "pss", r_msgC, "receive", topic)
+	r_sub_pss, err := r_rpcclient.Subscribe(context.Background(), "pss", r_msgC, "receive", topic, false, false)
 	if err != nil {
 		demo.Log.Crit("pss subscribe error", "err", err)
 	}

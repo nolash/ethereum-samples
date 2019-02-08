@@ -104,7 +104,7 @@ func main() {
 	// subscribe to incoming messages on the receiving sevicenode
 	// this will register a message handler on the specified topic
 	msgC := make(chan pss.APIMsg)
-	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic)
+	sub, err := r_rpcclient.Subscribe(context.Background(), "pss", msgC, "receive", topic, false, false)
 
 	// get the recipient node's swarm overlay address
 	var l_bzzaddr string

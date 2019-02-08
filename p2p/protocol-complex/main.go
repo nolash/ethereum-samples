@@ -73,7 +73,7 @@ func main() {
 
 	// create the demo service and register it with the node stack
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		params := service.NewDemoParams(nil)
+		params := service.NewDemoParams(nil, nil)
 		params.MaxJobs = defaultMaxJobs
 		params.MaxTimePerJob = defaultMaxTime
 		params.MaxDifficulty = defaultMaxDifficulty

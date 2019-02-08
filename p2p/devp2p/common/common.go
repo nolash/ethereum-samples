@@ -13,13 +13,13 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
-	"github.com/ethereum/go-ethereum/swarm/pss"
+	//	"github.com/ethereum/go-ethereum/swarm/pss"
 )
 
 const (
@@ -42,7 +42,7 @@ var (
 	verbose      = flag.Bool("v", false, "more verbose logs")
 	remoteport   = flag.Int("p", 0, "remote port (enables remote RPC lookup of enode)")
 	remotehost   = flag.String("h", "127.0.0.1", "remote host (RPC, p2p)")
-	enode        = flag.String("e", "", "enode to connect to (overrides remote RPC lookup)")
+	enodeconnect = flag.String("e", "", "enode to connect to (overrides remote RPC lookup)")
 	p2plocalport = flag.Int("l", P2pPort, "local port for p2p connections")
 )
 
@@ -104,12 +104,12 @@ func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protoco
 			return nil, err
 		}
 
-		for i, s := range specs {
-			_, err := svc.RegisterPssProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
-			if err != nil {
-				return nil, err
-			}
-		}
+		//		for i, s := range specs {
+		//			_, err := svc.RegisterProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
+		//			if err != nil {
+		//				return nil, err
+		//			}
+		//		}
 		return svc, nil
 	}
 }
@@ -183,7 +183,7 @@ func getEnodeFromRPC(rawurl string) (string, error) {
 }
 
 func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error {
-	var ids []discover.NodeID
+	var ids []enode.ID
 	var addrs [][]byte
 	for _, r := range rpcs {
 		var nodeinfo p2p.NodeInfo
@@ -191,11 +191,17 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 		if err != nil {
 			return err
 		}
-		p2pnode, err := discover.ParseNode(nodeinfo.Enode)
+		Log.Debug("nodeinfo", "n", nodeinfo)
+		//var id enode.ID
+		var p2pnode enode.Node
+		//p2pnode, err := enode.UnmarshalText(nodeinfo.Enode)
+		//err = id.UnmarshalText([]byte(nodeinfo.Enode))
+		err = p2pnode.UnmarshalText([]byte(nodeinfo.Enode))
 		if err != nil {
 			return err
 		}
-		ids = append(ids, p2pnode.ID)
+		//ids = append(ids, id)
+		ids = append(ids, p2pnode.ID())
 		var bzzaddr string
 		err = r.Call(&bzzaddr, "pss_baseAddr")
 		if err != nil {
@@ -213,7 +219,7 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 				return err
 			}
 			Log.Debug("health", "i", i, "addr", common.ToHex(addrs[i]), "id", ids[i], "info", health)
-			if health.KnowNN && health.GotNN && health.Full {
+			if health.KnowNN && health.ConnectNN {
 				healthycount++
 			}
 		}

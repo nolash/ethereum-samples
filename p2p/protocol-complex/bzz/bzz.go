@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
 	swarmapi "github.com/ethereum/go-ethereum/swarm/api"
@@ -43,7 +43,7 @@ type BzzService struct {
 	//Topic       *pss.Topic
 	streamer *stream.Registry
 	demo     *service.Demo
-	rh       *storage.ResourceHandler
+	//rh       *storage.ResourceHandler
 }
 
 func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
@@ -58,10 +58,10 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 		kp,
 	)
 
-	nodeID, err := discover.HexID(cfg.NodeID)
+	nodeID := enode.HexID(cfg.NodeID)
 	addr := &network.BzzAddr{
 		OAddr: common.FromHex(cfg.BzzKey),
-		UAddr: []byte(discover.NewNode(nodeID, net.IP{127, 0, 0, 1}, 30303, 30303).String()),
+		UAddr: []byte(enode.New(nodeID, net.IP{127, 0, 0, 1}, 30303, 30303).String()),
 	}
 
 	// storage
@@ -73,20 +73,20 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 	}
 
 	// resource handler
-	rhparams := &storage.ResourceHandlerParams{
-		QueryMaxPeriods: &storage.ResourceLookupParams{
-			Limit: false,
-		},
-		Signer: &storage.GenericResourceSigner{
-			PrivKey: privkey,
-		},
-		EthClient: storage.NewBlockEstimator(),
-	}
-	self.rh, err = storage.NewResourceHandler(rhparams)
-	if err != nil {
-		return nil, fmt.Errorf("resource fail: %v", err)
-	}
-	self.lstore.Validators = []storage.ChunkValidator{self.rh}
+	//	rhparams := &storage.ResourceHandlerParams{
+	//		QueryMaxPeriods: &storage.ResourceLookupParams{
+	//			Limit: false,
+	//		},
+	//		Signer: &storage.GenericResourceSigner{
+	//			PrivKey: privkey,
+	//		},
+	//		EthClient: storage.NewBlockEstimator(),
+	//	}
+	//	self.rh, err = storage.NewResourceHandler(rhparams)
+	//	if err != nil {
+	//		return nil, fmt.Errorf("resource fail: %v", err)
+	//	}
+	//	self.lstore.Validators = []storage.ChunkValidator{self.rh}
 
 	// sync/stream
 	stateStore, err := state.NewDBStore(filepath.Join(cfg.Path, "state-store.db"))

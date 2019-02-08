@@ -67,6 +67,9 @@ function feedUpdateDigest(request /*request*/, data /*UInt8Array*/) {
 	return web3.utils.sha3(web3.utils.bytesToHex(new Uint8Array(buf)));
 }
 
+request = {"feed":{"topic":"0x4b680e0ac418934e5468daea238ffc8e25941200ff35a99eee2b1c52357f8c2a","user":"0x1d66d3fa0250e6e3085ec4ee90a7eafb176ebfb8"},"epoch":{"time":1544905717,"level":25},"protocolVersion":0}
+data = new Uint8Array([0x66, 0x6f, 0x6f])
+
 // data payload
 //data = new Uint8Array([5,154,15,165,62])
 
@@ -74,6 +77,6 @@ function feedUpdateDigest(request /*request*/, data /*UInt8Array*/) {
 //request = {"feed":{"topic":"0x1234123412341234123412341234123412341234123412341234123412341234","user":"0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"},"epoch":{"time":1538650124,"level":25},"protocolVersion":0}
 
 // obtain digest
-//digest = feedUpdateDigest(request, data)
+digest = feedUpdateDigest(request, data)
 
-//console.log(digest)
+console.log(digest)
