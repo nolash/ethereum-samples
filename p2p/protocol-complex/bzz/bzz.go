@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -46,6 +47,12 @@ type BzzService struct {
 	//rh       *storage.ResourceHandler
 }
 
+type NoopBalance bool
+
+func (n *NoopBalance) Add(amount int64, p *protocols.Peer) error {
+	return nil
+}
+
 func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 	var err error
 
@@ -61,7 +68,7 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 	nodeID := enode.HexID(cfg.NodeID)
 	addr := &network.BzzAddr{
 		OAddr: common.FromHex(cfg.BzzKey),
-		UAddr: []byte(enode.New(nodeID, net.IP{127, 0, 0, 1}, 30303, 30303).String()),
+		UAddr: []byte(enode.NewV4(&privkey.PublicKey, net.IP{127, 0, 0, 1}, 30303, 30303).String()),
 	}
 
 	// storage
@@ -73,6 +80,8 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 	}
 
 	// resource handler
+	// TODO: BROKEN upgrade code to feeds
+	//
 	//	rhparams := &storage.ResourceHandlerParams{
 	//		QueryMaxPeriods: &storage.ResourceLookupParams{
 	//			Limit: false,
@@ -93,13 +102,13 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 	if err != nil {
 		return nil, fmt.Errorf("statestore fail: %v", err)
 	}
-	db := storage.NewDBAPI(self.lstore)
-	delivery := stream.NewDelivery(to, db)
+	delivery := stream.NewDelivery(to, self.lstore)
 
-	self.streamer = stream.NewRegistry(addr, delivery, db, stateStore, &stream.RegistryOptions{
-		DoSync:     true,
-		DoRetrieve: true,
-	})
+	var noopBalance NoopBalance
+	self.streamer = stream.NewRegistry(nodeID, delivery, self.lstore, stateStore, &stream.RegistryOptions{
+		Syncing:   stream.SyncingDisabled,
+		Retrieval: stream.RetrievalClientOnly,
+	}, &noopBalance)
 
 	// pss
 	pssparams := pss.NewPssParams().WithPrivateKey(privkey)
@@ -115,7 +124,13 @@ func NewBzzService(cfg *swarmapi.Config) (*BzzService, error) {
 		UnderlayAddr: addr.UAddr,
 		HiveParams:   cfg.HiveParams,
 	}
-	self.bzz = network.NewBzz(bzzconfig, to, stateStore, stream.Spec, self.streamer.Run)
+	// TODO need proper loop that shuts down on network down, now the network will hang on close
+	self.bzz = network.NewBzz(bzzconfig, to, stateStore, self.streamer.GetSpec(), func(*network.BzzPeer) error {
+		for {
+
+		}
+	})
+	//self.bzz = network.NewBzz(bzzconfig, to, stateStore, stream.Spec, self.streamer.Run)
 
 	return self, nil
 }
@@ -131,7 +146,7 @@ func (self *BzzService) RegisterPssProtocol(psssvc SubService) error {
 		SubService: psssvc,
 		protocol:   psp,
 	}
-	self.ps.Register(&topic, psp.Handle)
+	self.ps.Register(&topic, pss.NewHandler(psp.Handle))
 	return nil
 }
 
@@ -213,9 +228,12 @@ func (self *BzzServiceAPI) AddPeer(topic pss.Topic, pubKey hexutil.Bytes, addr p
 
 	// register the underlying protocol as pss protocol
 	// and start running it on the peer
-	var nid discover.NodeID
-	copy(nid[:], addr)
-	p2pp := p2p.NewPeer(nid, string(pubKey), []p2p.Cap{})
+	pub, err := crypto.UnmarshalPubkey([]byte(pubKey))
+	if err != nil {
+		return err
+	}
+	nid := enode.NewV4(pub, net.IP{127, 0, 0, 1}, 30303, 30303)
+	p2pp := p2p.NewPeer(nid.ID(), string(pubKey), []p2p.Cap{})
 	log.Info(fmt.Sprintf("adding peer %s to demoservice protocol %d, %p %s", pubKey, topic, p2pp, common.ToHex(pubKey)))
 	psssvc.protocol.AddPeer(p2pp, topic, true, common.ToHex(pubKey))
 	return nil

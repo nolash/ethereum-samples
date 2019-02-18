@@ -1,6 +1,6 @@
 # sample pss protocol
 
-**main_pss.go is broken due to obsolete API usage of swarm feeds and enode/ENR. It will be fixed when I have the chance**
+**support for "mutable resources" is broken due to change to swarm feeds API. needs fix**
 
 This example illustrates how to implement a protocol of some complexity using `pss`.
 

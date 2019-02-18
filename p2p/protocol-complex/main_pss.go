@@ -76,7 +76,7 @@ func main() {
 
 	// create the demo service, but now we don't register it directly
 	// so we avoid the protocol running on the direct connected peers
-	params := service.NewDemoParams(nil)
+	params := service.NewDemoParams(nil, nil)
 	params.MaxJobs = defaultMaxJobs
 	params.MaxTimePerJob = defaultMaxTime
 	params.MaxDifficulty = defaultMaxDifficulty

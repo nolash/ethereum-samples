@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -31,25 +31,25 @@ import (
 )
 
 const (
-	defaultMaxDifficulty   = 24
-	defaultMinDifficulty   = 8
-	defaultSubmitDelay     = time.Millisecond * 100
-	defaultDataSize        = 32
-	defaultMaxTime         = time.Second * 15
-	defaultSimDuration     = time.Second * 1
-	defaultMaxJobs         = 100
-	defaultResourceApiHost = "http://localhost:8500"
+	defaultMaxDifficulty = 24
+	defaultMinDifficulty = 8
+	defaultSubmitDelay   = time.Millisecond * 100
+	defaultDataSize      = 32
+	defaultMaxTime       = time.Second * 15
+	defaultSimDuration   = time.Second * 1
+	defaultMaxJobs       = 100
+	//defaultResourceApiHost = "http://localhost:8500"
 )
 
 var (
-	loglevel      = flag.Bool("v", false, "loglevel")
-	useResource   = flag.Bool("r", false, "use resource sink")
+	loglevel = flag.Bool("v", false, "loglevel")
+	//useResource   = flag.Bool("r", false, "use resource sink")
 	ensAddr       = flag.String("e", "", "ens name to post resource updates")
 	maxDifficulty uint8
 	minDifficulty uint8
 	maxTime       time.Duration
 	maxJobs       int
-	privateKeys   map[discover.NodeID]*ecdsa.PrivateKey
+	privateKeys   map[enode.ID]*ecdsa.PrivateKey
 )
 
 func init() {
@@ -64,16 +64,12 @@ func init() {
 	maxTime = defaultMaxTime
 	maxJobs = defaultMaxJobs
 
-	privateKeys = make(map[discover.NodeID]*ecdsa.PrivateKey)
+	privateKeys = make(map[enode.ID]*ecdsa.PrivateKey)
 	adapters.RegisterServices(newServices())
 }
 
 func main() {
 	a := adapters.NewSimAdapter(newServices())
-	//a, err := adapters.NewDockerAdapter("")
-	//	if err != nil {
-	//		log.Crit(err.Error())
-	//	}
 
 	n := simulations.NewNetwork(a, &simulations.NetworkConfig{
 		ID:             "protocol-demo",
@@ -81,7 +77,7 @@ func main() {
 	})
 	defer n.Shutdown()
 
-	var nids []discover.NodeID
+	var nids []enode.ID
 	for i := 0; i < 5; i++ {
 		c := adapters.RandomNodeConfig()
 		nod, err := n.NewNodeWithConfig(c)
@@ -97,14 +93,19 @@ func main() {
 		}
 	}
 
+	// TODO: need better assertion for network readiness
+	n.StartAll()
+	for i, nid := range nids {
+		if i == 0 {
+			continue
+		}
+		n.Connect(nids[0], nid)
+	}
+
 	go http.ListenAndServe(":8888", simulations.NewServer(n))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	if err := simulations.Up(ctx, n, nids, simulations.UpModeStar); err != nil {
-		log.Error(err.Error())
-		return
-	}
 
 	err := connectPssPeers(n, nids)
 	if err != nil {
@@ -116,7 +117,7 @@ func main() {
 	time.Sleep(time.Second * 1)
 
 	quitC := make(chan struct{})
-	trigger := make(chan discover.NodeID)
+	trigger := make(chan enode.ID)
 	events := make(chan *simulations.Event)
 	sub := n.Events().Subscribe(events)
 	// event sink on quit
@@ -134,7 +135,7 @@ func main() {
 		for i, nid := range nids {
 			if i == 0 {
 				log.Info("appointed worker node", "node", nid.String())
-				go func(nid discover.NodeID) {
+				go func(nid enode.ID) {
 					trigger <- nid
 				}(nid)
 				continue
@@ -149,7 +150,7 @@ func main() {
 				return err
 			}
 
-			go func(nid discover.NodeID) {
+			go func(nid enode.ID) {
 				timer := time.NewTimer(defaultSimDuration)
 				for {
 					select {
@@ -169,7 +170,7 @@ func main() {
 		}
 		return nil
 	}
-	check := func(ctx context.Context, nid discover.NodeID) (bool, error) {
+	check := func(ctx context.Context, nid enode.ID) (bool, error) {
 		select {
 		case <-ctx.Done():
 		default:
@@ -226,7 +227,7 @@ func main() {
 	return
 }
 
-func connectPssPeers(n *simulations.Network, nids []discover.NodeID) error {
+func connectPssPeers(n *simulations.Network, nids []enode.ID) error {
 	var pivotBaseAddr string
 	var pivotPubKeyHex string
 	var pivotClient *rpc.Client
@@ -270,17 +271,17 @@ func newServices() adapters.Services {
 	haveWorker := false
 	return adapters.Services{
 		"bzz": func(node *adapters.ServiceContext) (node.Service, error) {
-			var resourceEnsName string
-			if *ensAddr != "" {
-				resourceEnsName = *ensAddr
-			} else {
-				resourceEnsName = fmt.Sprintf("%x.mutable.test", node.Config.ID[:])
-			}
-			resourceapi := resource.NewClient(defaultResourceApiHost, resourceEnsName)
-			var sinkFunc service.ResultSinkFunc
-			if *useResource {
-				sinkFunc = resourceapi.ResourceSinkFunc()
-			}
+			//			var resourceEnsName string
+			//			if *ensAddr != "" {
+			//				resourceEnsName = *ensAddr
+			//			} else {
+			//				resourceEnsName = fmt.Sprintf("%x.mutable.test", node.Config.ID[:])
+			//			}
+			//			resourceapi := resource.NewClient(defaultResourceApiHost, resourceEnsName)
+			//			var sinkFunc service.ResultSinkFunc
+			//			if *useResource {
+			//				sinkFunc = resourceapi.ResourceSinkFunc()
+			//			}
 			params := service.NewDemoParams(sinkFunc, saveFunc)
 			params.MaxJobs = maxJobs
 			params.MaxTimePerJob = maxTime
