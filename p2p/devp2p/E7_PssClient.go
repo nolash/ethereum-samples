@@ -29,9 +29,12 @@ var (
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			pp := protocols.NewPeer(p, rw, &demo.FooProtocol)
 			go func() {
-				err := pp.Send(&demo.FooPingMsg{
-					Created: time.Now(),
-				})
+				err := pp.Send(
+					context.TODO(),
+					&demo.FooPingMsg{
+						Created: time.Now(),
+					},
+				)
 				if err != nil {
 					demo.Log.Error("protocol send fail", "err", err)
 				}
@@ -44,7 +47,7 @@ var (
 )
 
 // receive message and quit
-func run(msg interface{}) error {
+func run(ctx context.Context, msg interface{}) error {
 	foomsg, ok := msg.(*demo.FooPingMsg)
 	if !ok {
 		return fmt.Errorf("invalid msg: %v", msg)

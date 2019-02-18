@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/swarm"
 	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
@@ -47,7 +47,7 @@ type fooHandler struct {
 	peer *p2p.Peer
 }
 
-func (self *fooHandler) handle(msg interface{}) error {
+func (self *fooHandler) handle(ctx context.Context, msg interface{}) error {
 	foomsg, ok := msg.(*FooMsg)
 	if !ok {
 		return fmt.Errorf("invalid message", "msg", msg, "peer", self.peer)
@@ -72,7 +72,7 @@ var (
 				outmsg := &FooMsg{
 					V: 42,
 				}
-				err := pp.Send(outmsg)
+				err := pp.Send(context.TODO(), outmsg)
 				if err != nil {
 					demo.Log.Error("Send p2p message fail", "err", err)
 				}
@@ -112,11 +112,12 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64, specs []*protoc
 
 		// register the protocols we will be using through pss
 		for i, s := range specs {
-			p, err := svc.RegisterPssProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
+			topic := pss.ProtocolTopic(s)
+			p, err := svc.RegisterPssProtocol(&topic, s, protocols[i], &pss.ProtocolParams{true, true})
 			if err != nil {
 				return nil, err
 			}
-			p.Pss.Register(&topic, p.Handle)
+			p.Pss.Register(&topic, pss.NewHandler(p.Handle))
 			pssprotos = append(pssprotos, p)
 		}
 		return svc, nil
@@ -177,7 +178,7 @@ func main() {
 
 	// get the overlay addresses
 	var l_bzzaddr string
-	err = r_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
+	err = l_rpcclient.Call(&l_bzzaddr, "pss_baseAddr")
 	if err != nil {
 		demo.Log.Crit("pss get pubkey fail", "err", err)
 	}
@@ -249,7 +250,7 @@ func main() {
 	}()
 
 	// addpeer
-	nid, _ := discover.HexID("0x00") // this hack is needed to satisfy the p2p method
+	nid := enode.HexID(fmt.Sprintf("0x%064x", 0)) // this hack is needed to satisfy the p2p method
 	p := p2p.NewPeer(nid, fmt.Sprintf("%x", l_bzzaddr), []p2p.Cap{})
 	pssprotos[0].AddPeer(p, topic, true, r_pubkey)
 
