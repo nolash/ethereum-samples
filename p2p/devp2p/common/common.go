@@ -214,7 +214,7 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 		healthycount := 0
 		for i, r := range rpcs {
 			var health network.Health
-			err := r.Call(&health, "hive_healthy", peerpot)
+			err := r.Call(&health, "hive_getHealthInfo", peerpot)
 			if err != nil {
 				return err
 			}
