@@ -15,7 +15,7 @@ case $1 in
 		echo "b$i: '$ENODE'"
 		echo "a$i: '$ENODENEW'"
 		for i in {2..4}; do
-			docker run -d --ip 10.1.2.1$i --network swarminternal --rm -e PATH=/:/bin:/usr/bin:/usr/local/bin -e PASSWORD=tralala --name bzz$i -h bz$i $IMG --tracing --tracing.endpoint 10.1.2.2:6831 --bzzport 80 --httpaddr 0.0.0.0 --tracing.svc "bz$i" --bootnodes $ENODENEW
+			docker run -d --ip 10.1.2.1$i --network swarminternal --rm -e PATH=/:/bin:/usr/bin:/usr/local/bin -e PASSWORD=tralala --name bzz$i -h bz$i $IMG --tracing --tracing.endpoint 10.1.2.2:6831 --bzzport 80 --httpaddr 0.0.0.0 --tracing.svc "bz$i" --bootnodes $ENODENEW 
 		done
 		;;
 	"smoke")
