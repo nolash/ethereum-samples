@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -37,7 +38,7 @@ type fooHandler struct {
 	peer *p2p.Peer
 }
 
-func (self *fooHandler) handle(msg interface{}) error {
+func (self *fooHandler) handle(_ context.Context, msg interface{}) error {
 	foomsg, ok := msg.(*FooMsg)
 	if !ok {
 		return fmt.Errorf("invalid message", "msg", msg, "peer", self.peer)
@@ -62,7 +63,7 @@ var (
 				V: 42,
 			}
 
-			err := pp.Send(outmsg)
+			err := pp.Send(context.TODO(), outmsg)
 			if err != nil {
 				demo.Log.Error("Send p2p message fail", "err", err)
 			}
