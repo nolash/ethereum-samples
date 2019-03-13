@@ -9,15 +9,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/swarm"
-	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	//	"github.com/ethereum/go-ethereum/swarm/pss"
 )
@@ -71,48 +67,39 @@ func init() {
 	log.Root().SetHandler(h)
 }
 
-func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContext) (node.Service, error) {
-	return NewSwarmServiceWithProtocol(stack, bzzport, nil, nil)
-}
-
-func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protocols.Spec, protocols []*p2p.Protocol) func(ctx *node.ServiceContext) (node.Service, error) {
-	return func(ctx *node.ServiceContext) (node.Service, error) {
-		// get the encrypted private key file
-		keyid := fmt.Sprintf("%s/D3_Pss/nodekey", stack.DataDir())
-
-		// load the private key from the file content
-		prvkey, err := crypto.LoadECDSA(keyid)
-		if err != nil {
-			return nil, fmt.Errorf("privkey fail: %v", prvkey)
-		}
-
-		// create the swarm overlay address
-		//chbookaddr := crypto.PubkeyToAddress(prvkey.PublicKey)
-
-		// configure and create a swarm instance
-		bzzdir := stack.InstanceDir() // todo: what is the difference between this and datadir?
-
-		bzzconfig := bzzapi.NewConfig()
-		bzzconfig.Path = bzzdir
-		bzzconfig.Init(prvkey)
-		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
-		if err != nil {
-			Log.Crit("unable to configure swarm", "err", err)
-		}
-		svc, err := swarm.NewSwarm(bzzconfig, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		//		for i, s := range specs {
-		//			_, err := svc.RegisterProtocol(s, protocols[i], &pss.ProtocolParams{true, true})
-		//			if err != nil {
-		//				return nil, err
-		//			}
-		//		}
-		return svc, nil
-	}
-}
+//func NewSwarmService(stack *node.Node, bzzport int) func(ctx *node.ServiceContext) (node.Service, error) {
+//	return NewSwarmServiceWithProtocol(stack, bzzport, nil, nil)
+//}
+//
+//func NewSwarmServiceWithProtocol(stack *node.Node, bzzport int, specs []*protocols.Spec, protocols []*p2p.Protocol) func(ctx *node.ServiceContext) (node.Service, error) {
+//	return func(ctx *node.ServiceContext) (node.Service, error) {
+//		// get the encrypted private key file
+//		keyid := fmt.Sprintf("%s/D3_Pss/nodekey", stack.DataDir())
+//
+//		// load the private key from the file content
+//		prvkey, err := crypto.LoadECDSA(keyid)
+//		if err != nil {
+//			return nil, fmt.Errorf("privkey fail: %v", prvkey)
+//		}
+//
+//		// configure and create a swarm instance
+//		bzzdir := stack.InstanceDir() // todo: what is the difference between this and datadir?
+//
+//		bzzconfig := bzzapi.NewConfig()
+//		bzzconfig.Path = bzzdir
+//		bzzconfig.Init(prvkey)
+//		bzzconfig.Port = fmt.Sprintf("%s", bzzport)
+//		if err != nil {
+//			Log.Crit("unable to configure swarm", "err", err)
+//		}
+//		svc, err := swarm.NewSwarm(bzzconfig, nil)
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		return svc, nil
+//	}
+//}
 
 // set up the local service node
 func NewServiceNode(port int, httpport int, wsport int, modules ...string) (*node.Node, error) {
@@ -144,7 +131,7 @@ func NewServiceNode(port int, httpport int, wsport int, modules ...string) (*nod
 	return stack, nil
 }
 
-// create a server
+// create a new p2p server
 func NewServer(privkey *ecdsa.PrivateKey, name string, version string, proto p2p.Protocol, port int) *p2p.Server {
 
 	cfg := p2p.Config{
@@ -192,10 +179,7 @@ func WaitHealthy(ctx context.Context, minbinsize int, rpcs ...*rpc.Client) error
 			return err
 		}
 		Log.Debug("nodeinfo", "n", nodeinfo)
-		//var id enode.ID
 		var p2pnode enode.Node
-		//p2pnode, err := enode.UnmarshalText(nodeinfo.Enode)
-		//err = id.UnmarshalText([]byte(nodeinfo.Enode))
 		err = p2pnode.UnmarshalText([]byte(nodeinfo.Enode))
 		if err != nil {
 			return err

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-IMG="swarm:pssssl"
+IMG="swarm:pzz"
+#IMG="lash/swarm:pss"
 
 case $1 in
 	"start")
