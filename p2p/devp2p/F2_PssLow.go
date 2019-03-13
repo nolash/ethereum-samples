@@ -149,8 +149,13 @@ type pssMsgHandler struct {
 
 // Implements pss.HandlerFunc
 //
-// This is a simple example that expects the first 32 bytes of the message to be the swarm overlay address
-// of the sending node, and any leftover bytes to be the message to echo
+// This is a simple echo protocol example:
+//
+// If the notifyC channel is set, the handler merely sends the received message on the channel
+//
+// If it is NOT set, the handler expects the first 32 bytes of the message to be the swarm overlay address of the sending node.
+// It will use this to create an address book entry for the sender on the receiving node.
+// Any leftover bytes in the message will then be sent back to the newly added node.
 func (h *pssMsgHandler) handler(msg []byte, p *p2p.Peer, asymmetric bool, keyid string) error {
 	demo.Log.Debug("Received msg", "msg", msg, "keyid", keyid)
 	if h.notifyC != nil {
