@@ -16,6 +16,10 @@ import (
 	demo "./common"
 )
 
+var (
+	topic = pss.BytesToTopic([]byte("foo"))
+)
+
 // SwarmAndPss is a wrapper for the pss and bzz service combo
 // Makes necessary objects for pss comms available to caller
 type SwarmAndPss struct {
@@ -139,17 +143,34 @@ type pssMsgNotification struct {
 // object providing the handler function for message in pss
 // includes a notification channel for received messages
 type pssMsgHandler struct {
+	ps      *pss.Pss
 	notifyC chan pssMsgNotification
 }
 
 // Implements pss.HandlerFunc
+//
+// This is a simple example that expects the first 32 bytes of the message to be the swarm overlay address
+// of the sending node, and any leftover bytes to be the message to echo
 func (h *pssMsgHandler) handler(msg []byte, p *p2p.Peer, asymmetric bool, keyid string) error {
 	demo.Log.Debug("Received msg", "msg", msg, "keyid", keyid)
-	h.notifyC <- pssMsgNotification{
-		keyid: keyid,
-		msg:   msg,
+	if h.notifyC != nil {
+		h.notifyC <- pssMsgNotification{
+			keyid: keyid,
+			msg:   msg,
+		}
+		return nil
 	}
-	return nil
+	pubkeybytes, err := hexutil.Decode(keyid)
+	if err != nil {
+		return err
+	}
+	addr := pss.PssAddress(msg[:32])
+	pubkey, err := crypto.UnmarshalPubkey(pubkeybytes)
+	if err != nil {
+		return err
+	}
+	h.ps.SetPeerPublicKey(pubkey, topic, addr)
+	return h.ps.SendAsym(keyid, topic, msg[32:])
 }
 
 func main() {
@@ -184,26 +205,36 @@ func main() {
 	enod_r := node_r.Server().Self()
 	srv_l.AddPeer(enod_r)
 
-	// create a pss message handler in the second node
-	// the received message will appear on the channel
-	topic := pss.BytesToTopic([]byte("foo"))
+	// create and register a pss message handler on the first node
+	// it will send the message on the notification channel on receive
 	notifyC := make(chan pssMsgNotification)
-	handler_r := pssMsgHandler{
+	pss_l := bundle_l.Pss()
+	handler_l := pssMsgHandler{
+		ps:      pss_l,
 		notifyC: notifyC,
 	}
+	h_l := pss.NewHandler(handler_l.handler)
+	pss_l.Register(&topic, h_l)
 
-	// register the handler in the pss instance
-	h := pss.NewHandler(handler_r.handler)
+	// create and register a pss message handler on the second node
+	// we don't add a notification channel, so it will reply
 	pss_r := bundle_r.Pss()
-	pss_r.Register(&topic, h)
+	handler_r := pssMsgHandler{
+		ps: pss_r,
+	}
+	h_r := pss.NewHandler(handler_r.handler)
+	pss_r.Register(&topic, h_r)
 
 	// add the second node to the address book of the first node
-	pss_l := bundle_l.Pss()
 	pss_l.SetPeerPublicKey(pss_r.PublicKey(), topic, pss_r.BaseAddr())
 
 	// send the message using the address book entry
-	pss_l.SendAsym(hexutil.Encode(crypto.FromECDSAPub(pss_r.PublicKey())), topic, []byte("hey"))
+	var msg []byte
+	msg = append(msg, pss_l.BaseAddr()...)
+	msg = append(msg, []byte("sendmeback")...)
+	pss_l.SendAsym(hexutil.Encode(crypto.FromECDSAPub(pss_r.PublicKey())), topic, msg)
 
 	// that's all folks
-	demo.Log.Info("done", "notification", <-notifyC)
+	res := <-notifyC
+	demo.Log.Info("done", "message", string(res.msg), "from", res.keyid)
 }
