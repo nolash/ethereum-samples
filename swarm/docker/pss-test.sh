@@ -13,7 +13,7 @@ case $1 in
 		echo "b$i: '$ENODE'"
 		echo "a$i: '$ENODENEW'"
 		for i in {2..4}; do
-			docker run -d --ip 10.1.3.1$i --network pssnet --rm -e PATH=/:/bin:/usr/bin:/usr/local/bin -e PASSWORD=tralala --name pss$i -h ps$i $IMG --bootnodes $ENODENEW
+			docker run -d --ip 10.1.3.1$i --network pssnet --rm -e PATH=/:/bin:/usr/bin:/usr/local/bin -e PASSWORD=tralala --name pss$i -h ps$i $IMG --nat extip:10.1.3.1$i --bootnodes $ENODENEW
 		done
 		;;
 	"status")

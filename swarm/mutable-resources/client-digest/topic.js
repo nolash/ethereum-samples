@@ -2,7 +2,26 @@ var web3 = require("web3");
 
 zeros = "0000000000000000000000000000000000000000000000000000000000000000";
 
-function getFeedTopic(topic, name) {
+module.exports = {
+	toTopic: toTopic,
+}
+
+function setTopicRight(data, topic) {
+	if (!web3.utils.isHex(topic)) {
+		throw "topic must be hex";
+		return "";
+	}
+	for (i = 0; i < topic.length / 2; i++) {
+		var nameByte = "";
+		if (i < name.length) {
+			nameByte = name.charCodeAt(i);
+		}
+		var topicByte = parseInt(topic.substring(i*2, (i*2)+2), 16);
+		topicXored += ("0"+(nameByte ^ topicByte).toString(16)).slice(-2);
+	}
+}
+
+function setTopicLeft(name, topic=zeros) {
 	// check topic sanity
 	if (!web3.utils.isHex(topic)) {
 		throw "topic must be hex";
@@ -60,5 +79,5 @@ function getFeedManifestFromHex(topic, name, user) {
 
 }
 
-console.log(getFeedManifestFromHex("0x660000000000000000000000000000000000000000000000000000000000002a", "foo", "19cb96e2fcf9afd95ef06a504ca4feb89c05ca88"));
-console.log(getFeedManifestFromHex("0x2a", "foo", "19cb96e2fcf9afd95ef06a504ca4feb89c05ca88"));
+//console.log(getFeedManifestFromHex("0x660000000000000000000000000000000000000000000000000000000000002a", "foo", "19cb96e2fcf9afd95ef06a504ca4feb89c05ca88"));
+//console.log(getFeedManifestFromHex("0x2a", "foo", "19cb96e2fcf9afd95ef06a504ca4feb89c05ca88"));
