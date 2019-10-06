@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/swarm"
-	bzzapi "github.com/ethereum/go-ethereum/swarm/api"
-	"github.com/ethereum/go-ethereum/swarm/pss"
+	"github.com/ethersphere/swarm"
+	bzzapi "github.com/ethersphere/swarm/api"
+	"github.com/ethersphere/swarm/pss"
 
 	demo "./common"
 )
@@ -29,7 +29,7 @@ func newService(bzzdir string, bzzport int, bzznetworkid uint64) func(ctx *node.
 		// create necessary swarm params
 		bzzconfig := bzzapi.NewConfig()
 		bzzconfig.Path = bzzdir
-		bzzconfig.Init(privkey)
+		bzzconfig.Init(privkey, privkey)
 		if err != nil {
 			demo.Log.Crit("unable to configure swarm", "err", err)
 		}

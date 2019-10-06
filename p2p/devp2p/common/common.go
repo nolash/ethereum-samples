@@ -14,8 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/swarm/network"
-	//	"github.com/ethereum/go-ethereum/swarm/pss"
+	"github.com/ethersphere/swarm/network"
 )
 
 const (
